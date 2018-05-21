@@ -43,7 +43,7 @@ void rectangle::renovate()
 	//刷新这个矩形的范围
 	for (int i = 0; i < color_count; i++)
 	{
-		(*min_point)[i] = 2147483647;
+		(*min_point)[i] = INT_MAX;
 		(*max_point)[i] = 0;
 	}
 	for (int i = 0; i < child.size(); i++)
@@ -70,11 +70,11 @@ void rectangle::renovate()
 
 }
 
-int rectangle::expand_cost(rectangle *new_rect)
+float rectangle::expand_cost(rectangle *new_rect)
 {
-	int min;
-	int max;
-	int cost = 1;
+	float min;
+	float max;
+	float cost = 1;
 	for (int i = 0; i < color_count; i++)
 	{
 		if ((*min_point)[i] > (*new_rect->min_point)[i])
@@ -90,10 +90,33 @@ int rectangle::expand_cost(rectangle *new_rect)
 	return cost - volume - new_rect->volume;
 }
 
-int rectangle::expand_cost(rectangle * rect1, rectangle * rect2)
+float rectangle::expand_cost(rectangle *rect1, rectangle *rect2)
 {
-	return 0;
+	float min;
+	float max;
+	float cost = 1;
+	for (int i = 0; i < color_count; i++) {
+		// 找三个矩形中最小的min_point值
+		if ((*min_point)[i] < (*rect1->min_point)[i])
+			min = (*min_point)[i];
+		else
+			min = (*rect1->min_point)[i];
+		if ((*rect2->min_point)[i] < min)
+			min = (*rect2->min_point)[i];
+
+		// 找三个矩形中最大的max_point值
+		if ((*min_point)[i] > (*rect1->min_point)[i])
+			max = (*min_point)[i];
+		else
+			max = (*rect1->min_point)[i];
+		if ((*rect2->min_point)[i] > max)
+			max = (*rect2->min_point)[i];
+
+		cost *= (max - min);
+	}
+	return cost - volume - rect1->volume - rect2->volume;
 }
+
 
 rectangle * rectangle::search_insert_position(rectangle &new_rect)
 {
@@ -106,8 +129,8 @@ rectangle * rectangle::search_insert_position(rectangle &new_rect)
 	else
 	{
 		//这是一个非空非底层矩形，将在其子节点中寻找插入的节点
-		int min_cost = 2147483647;
-		int temp;
+		float min_cost = FLT_MAX;
+		float temp;
 		for (int i = 0; i < child.size(); i++)
 		{
 			temp = child[i]->expand_cost(&new_rect);
@@ -259,9 +282,7 @@ void rectangle::insert_2(rectangle & new_rect)
 		}
 	}
 	else
-	{
 		std::cout << "尝试将节点插入为点的子节点！" << std::endl;
-	}
 }
 
 void rectangle::delete_child(int index)
@@ -277,75 +298,88 @@ void rectangle::init_point_data(std::string _image_path, std::string _image_name
 	point_data->data = _data;
 }
 
-// 用一个大矩形覆盖两个矩形时浪费掉的空间
-std::vector<rectangle*> rectangle::find_seed(rectangle &new_rect, int n)
+// 选用一个大矩形覆盖两个矩形时浪费掉的空间最大的两个矩形
+std::vector<rectangle*> rectangle::find_seed(rectangle &new_rect)
 {
-	int max_waste_volume = 0;
-	int v = 0;
+	float max_waste_volume = 0;
+	float v = 0;
 
 	std::vector<rectangle*> seed;
-	for (int i = 0; i < n; i++)
-		seed.push_back(new rectangle(RECTANGLE)); // 垃圾值
+	seed.resize(2);
 
-	if (n == 2) {		//选出两个种子矩形
-		for (int i = 0; i < child.size(); i++) {
-			for (int j = i + 1; j < child.size(); j++) {
-				v = child[i]->expand_cost(child[j]);
-				if (v > max_waste_volume) {
-					v = max_waste_volume;
-					seed[0] = child[i];
-					seed[1] = child[j];
-				}
-			}
-
-			// 跟new_rect也进行比较
-			v = child[i]->expand_cost(&new_rect);
+	for (int i = 0; i < child.size(); i++) {
+		for (int j = i + 1; j < child.size(); j++) {
+			v = child[i]->expand_cost(child[j]);
 			if (v > max_waste_volume) {
 				v = max_waste_volume;
 				seed[0] = child[i];
-				seed[1] = &new_rect;
+				seed[1] = child[j];
 			}
 		}
-	}
-	else if (n == 3) { //选出三个种子矩形
-		for (int i = 0; i < child.size(); i++) {
-			for (int j = i + 1; j < child.size(); j++) {
-				for (int k = j + 1; k < child.size(); k++) {
-					v = child[i]->expand_cost(child[j], child[k]);
-					if (v > max_waste_volume) {
-						v = max_waste_volume;
-						seed[0] = child[i];
-						seed[1] = child[j];
-						seed[2] = child[k];
-					}
-				}
 
-				// 跟new_rect也进行比较
-				v = child[i]->expand_cost(child[j], &new_rect);
-				if (v > max_waste_volume) {
-					v = max_waste_volume;
-					seed[0] = child[i];
-					seed[1] = child[j];
-					seed[2] = &new_rect;
-				}
-			}
+		// 跟new_rect也进行比较
+		v = child[i]->expand_cost(&new_rect);
+		if (v > max_waste_volume) {
+			v = max_waste_volume;
+			seed[0] = child[i];
+			seed[1] = &new_rect;
 		}
 	}
 
 	return seed;
 }
 
+// 选出三个种子矩形
+std::vector<rectangle*> rectangle::find_seed(rectangle & sibling, rectangle & new_rect) {
+	float max_waste_volume = 0;
+	float v = 0;
+
+	std::vector<rectangle*> seed;
+	seed.resize(3);
+
+	// 把要分裂的两个矩形里的孩子节点和新加的节点插入nodes向量
+	std::vector<rectangle*> nodes;
+	for (int i = 0; i < this->child.size(); i++)
+		nodes.push_back(this->child[i]);
+	for (int i = 0; i < sibling.child.size(); i++)
+		nodes.push_back(sibling.child[i]);
+	nodes.push_back(&new_rect);
+
+	for (int i = 0; i < nodes.size(); i++) {
+		for (int j = i + 1; j < nodes.size(); j++) {
+			for (int k = j + 1; k < nodes.size(); k++) {
+				v = nodes[i]->expand_cost(nodes[j], nodes[k]);
+				if (v > max_waste_volume) {
+					v = max_waste_volume;
+					seed[0] = nodes[i];
+					seed[1] = nodes[j];
+					seed[2] = nodes[k];
+				}
+			}
+
+			// 跟new_rect也进行比较
+			v = nodes[i]->expand_cost(nodes[j], &new_rect);
+			if (v > max_waste_volume) {
+				v = max_waste_volume;
+				seed[0] = nodes[i];
+				seed[1] = nodes[j];
+				seed[2] = &new_rect;
+			}
+		}
+	}
+	return seed;
+}
+
 void rectangle::split(rectangle & new_rect)
 {
 	// 令new_rect的index为child.size()。seed[1]_index可能等于child.size
-	std::vector<rectangle*> seed = find_seed(new_rect, 2);
+	std::vector<rectangle*> seed = find_seed(new_rect);
 
 	// 矩形的节点和新加的节点合并生成2个新的矩形，其子节点分别暂存在r1，r2
 	std::vector<rectangle*> r1, r2;
 	int total_node_num = RECTANGLE_CAPABILITY + 1;
-	int cost1, cost2;
-	int max_r1_size = total_node_num / 2, max_r2_size= total_node_num - max_r1_size;
-	
+	float cost1, cost2;
+	int max_r1_size = total_node_num / 2, max_r2_size = total_node_num - max_r1_size;
 	// 把一个矩形的节点和新加的节点分配到两个组
 	// 先将新加的点分配
 	if (&new_rect != seed[1]) { //  新加的点不是seed
@@ -389,26 +423,29 @@ void rectangle::split(rectangle & new_rect)
 	}
 	child.clear();
 
+
+	// FIXME - create 2 rectangles with 2 rectangle vector
 	rectangle *split_rect = new rectangle(RECTANGLE);
 	for (int i = 0; i < r1.size(); i++)
-		child.push_back(r1[i]);
+		this->insert_2(*r1[i]);
 	for (int i = 0; i < r2.size(); i++)
-		split_rect->child.push_back(r2[i]);
+		split_rect->insert_2(*r2[i]);
+
 	renovate();
 	split_rect->renovate();
 	split_rect->parent = parent;
-	parent->insert(*split_rect);
+	parent->insert_2(*split_rect);
 }
 
 void rectangle::split_2to3(rectangle & sibling, rectangle & new_rect)
 {
-	std::vector<rectangle*> seed = find_seed(new_rect, 3);
+	std::vector<rectangle*> seed = find_seed(sibling, new_rect);
 
 	// 2个矩形的节点和新加的节点合并生成3个新的矩形，其子节点分别暂存在r1，r2，r3
 	std::vector<rectangle*> r1, r2, r3;
 	int total_node_num = 2 * RECTANGLE_CAPABILITY + 1;
-	int cost1, cost2, cost3;
-	int max_r1_size = total_node_num / 3, 
+	float cost1, cost2, cost3;
+	int max_r1_size = total_node_num / 3,
 		max_r2_size = (total_node_num - max_r1_size) / 2,
 		max_r3_size = total_node_num - max_r1_size - max_r2_size;
 	int index; // 最小cost的编号
@@ -450,11 +487,11 @@ void rectangle::split_2to3(rectangle & sibling, rectangle & new_rect)
 		cost3 = child[i]->expand_cost(seed[2]);
 
 		if (r1.size() >= max_r1_size) // 第一个组合已满
-			cost1 = INT_MAX;
+			cost1 = FLT_MAX;
 		if (r2.size() >= max_r2_size) // 第二个组合已满
-			cost2 = INT_MAX;
+			cost2 = FLT_MAX;
 		if (r3.size() >= max_r3_size) // 第三个组合已满
-			cost3 = INT_MAX;
+			cost3 = FLT_MAX;
 
 		// 分成三部分
 		index = min_index_of_three(cost1, cost2, cost3);
@@ -467,26 +504,19 @@ void rectangle::split_2to3(rectangle & sibling, rectangle & new_rect)
 	}
 	child.clear();
 
-	rectangle *split_rect1 = new rectangle(RECTANGLE);
-	rectangle *split_rect2 = new rectangle(RECTANGLE);
+	// FIXME - create 3 rectangles with 3 rectangle vector
+	rectangle *split_rect = new rectangle(RECTANGLE);
 	for (int i = 0; i < r1.size(); i++)
-		child.push_back(r1[i]);
+		this->insert_2(*r1[i]);
 	for (int i = 0; i < r2.size(); i++)
-		split_rect1->child.push_back(r2[i]);
+		sibling.insert_2(*r2[i]);
 	for (int i = 0; i < r3.size(); i++)
-		split_rect2->child.push_back(r3[i]);
-
-	// FIXME
-	renovate();
-	split_rect1->renovate();
-	split_rect1->parent = parent;
-	parent->insert(*split_rect1);
+		split_rect->insert_2(*r3[i]);
 
 	renovate();
-	split_rect2->renovate();
-	split_rect2->parent = parent;
-	parent->insert(*split_rect2);
-
+	split_rect->renovate();
+	split_rect->parent = parent;
+	parent->insert(*split_rect);
 }
 
 void rectangle::naive_search(rectangle & target, std::vector<rectangle*>* result)
@@ -528,8 +558,26 @@ float rectangle::get_max_distance(rectangle & node) {
 	return sqrt(dist);
 }
 
+void rectangle::knn_search(rectangle & target, std::vector<rectangle*>* result, int need_count) {
+	float max_dist = 0;
+	std::vector<rectangle*>* overlap_node = new std::vector<rectangle*>;
+	_knn_search(target, result, need_count, max_dist, overlap_node);
+
+	for (int i = 0; i < overlap_node->size(); i++)
+		(*overlap_node)[i]->expand(target, result, need_count, max_dist);
+
+	while (result->size() < need_count) {
+		for (int i = 0; i < overlap_node->size(); i++) {
+			max_dist *= 2;
+			(*overlap_node)[i]->expand(target, result, need_count, max_dist);
+			(*overlap_node)[i] = (*overlap_node)[i]->parent;
+		}
+	}
+}
+
 // knn搜索时target是一个点
-void rectangle::knn_search(rectangle & target, std::vector<rectangle*>* result, int need_count, float &max_dist)
+void rectangle::_knn_search(rectangle & target, std::vector<rectangle*>* result,
+	int need_count, float &max_dist, std::vector<rectangle*>* overlap_node)
 {
 	float min_worst = FLT_MAX, temp_worst = 0;
 	float *best_dist = new float[child.size()];
@@ -537,20 +585,12 @@ void rectangle::knn_search(rectangle & target, std::vector<rectangle*>* result, 
 	bool leaf_flag = false;
 
 	for (int i = 0; i < child.size(); i++) {
-		if (child[i]->type == RECTANGLE) {
-			temp_worst = get_max_distance(target);
-			best_dist[i] = get_min_distance(target);
+		if (child[i]->type == RECTANGLE) { // 孩子节点是矩形
+			temp_worst = child[i]->get_max_distance(target);
+			best_dist[i] = child[i]->get_min_distance(target);
 
 			if (temp_worst < min_worst)
 				min_worst = temp_worst;
-
-			// 剪枝
-			for (int i = 0; i < child.size(); i++) {
-				if (best_dist[i] > min_worst) // 最近的距离都比最小的距离大，不搜索
-					continue;
-				else
-					child[i]->knn_search(target, result, need_count, max_dist);
-			}
 		}
 		else { // 孩子节点是叶节点
 			result->push_back(child[i]);
@@ -562,10 +602,31 @@ void rectangle::knn_search(rectangle & target, std::vector<rectangle*>* result, 
 		}
 	}
 
-	if (leaf_flag && overlap(target))
-		expand(target, result,need_count, max_dist);
+	// 剪枝 孩子节点是矩形
+	if (!leaf_flag) {
+		for (int i = 0; i < child.size(); i++) {
+			if (best_dist[i] > min_worst) // 最近的距离都比最小的距离大，不搜索
+				continue;
+			else
+				child[i]->_knn_search(target, result, need_count, max_dist, overlap_node);	// 继续搜索
+		}
+	}
+
+	// 结果个数不足时，基于这些矩形扩充（在expand函数）
+	if (leaf_flag && overlap(target) && overlap_node)
+		overlap_node->push_back(this);
 
 	delete[]best_dist;
+}
+
+void rectangle::get_leaf_nodes(std::vector<rectangle*>* res) {
+	if (this->type == POINT) {
+		res->push_back(this);
+		return;
+	}
+
+	for (int i = 0; i < child.size(); i++)
+		child[i]->get_leaf_nodes(res);
 }
 
 void rectangle::expand(rectangle & target, std::vector<rectangle*>* result, int need_count, float &max_dist)
@@ -575,24 +636,29 @@ void rectangle::expand(rectangle & target, std::vector<rectangle*>* result, int 
 	// 把节点target展开成正方形，其权值为2max_dist，搜索跟正方形重合的矩形
 	rectangle* new_rect = new rectangle(RECTANGLE);
 	for (int i = 0; i < COLOR_COUNT; i++) {
-		(*new_rect->min_point)[i] = (*target.min_point)[i] - max_dist;
-		(*new_rect->max_point)[i] = (*target.min_point)[i] + max_dist;
+		(*new_rect->min_point)[i] = (*target.min_point)[i] - max_dist; // FIXME 坐标不允许负号
+		(*new_rect->max_point)[i] = (*target.max_point)[i] + max_dist;
 	}
 	for (int i = 0; i < parent->child.size(); i++) {
 		// 跟节点target不重合但跟正方形new_rect重合
 		// 如果跟节点target重合的话肯定会搜索到，在这儿不再重复
-		if (!parent->child[i]->overlap(target) && parent->child[i]->overlap(*new_rect))
-			parent->child[i]->knn_search(target, result, need_count, max_dist);
+		if (parent->child[i]->overlap(*new_rect)) {
+			std::vector<rectangle*>* leaf_nodes = new std::vector<rectangle*>;
+			parent->child[i]->get_leaf_nodes(leaf_nodes);
+			for (int j = 0; j < leaf_nodes->size(); j++) {
+				auto match = std::find(result->begin(), result->end(), (*leaf_nodes)[j]);
+				if (match == result->end()) // 不存在于结果
+					result->push_back((*leaf_nodes)[j]);
+			}
+		}
 	}
-
-	if (result->size() < need_count) this->parent->expand(target, result, need_count, max_dist);
 }
 
 bool rectangle::overlap(rectangle & target)
 {
 	for (int i = 0; i < COLOR_COUNT; i++)
 	{
-		if (min_point[i] > target.max_point[i] || max_point[i] < target.min_point[i])
+		if ((*min_point)[i] > (*target.max_point)[i] || (*max_point)[i] < (*target.min_point)[i])
 		{
 			return false;
 		}

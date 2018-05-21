@@ -3,3 +3,14 @@ Indexing_Images_for_Content_Based_Retrieval.sln
 *.vcxproj
 *.filters
 Indexing_Images_for_Content_Based_Retrieval/Debug/
+*.db
+*.opendb
+*.ipch
+*.enc
+*.idb
+*.tlog
+.gitignore_
+.gitignore_BACKUP_18792
+.gitignore_BASE_18792
+.gitignore_REMOTE_18792
+.gitignore_LOCAL_18792
