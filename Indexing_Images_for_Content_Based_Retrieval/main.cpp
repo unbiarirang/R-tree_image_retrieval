@@ -2,7 +2,6 @@
 #include <iostream>
 #include "rectangle.h"
 
-//记录R树的根
 rectangle *root;
 
 int main()
@@ -30,7 +29,6 @@ int main()
 	{
 		(root->search_insert_position(v[i]))->insert(v[i]);
 	}
-	//树构建完成
 
 	rectangle *target = new rectangle(RECTANGLE);
 	(*target->min_point)[0] = 20;
@@ -41,7 +39,7 @@ int main()
 	(*target->max_point)[2] = 30;
 
 	std::vector<rectangle*>* result=new std::vector<rectangle*>;
-	//root->knn_search(v[0], result, 19);
+	root->knn_search(v[0], result, 7);
 	//root->naive_search(*target, result);
 	system("pause");
 	return 0;

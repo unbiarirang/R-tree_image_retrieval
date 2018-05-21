@@ -33,6 +33,7 @@ public:
 	// 选用一个大矩形覆盖两/三个矩形时浪费掉的空间最大的两/三个矩形。n为所找seed个数
 	std::vector<rectangle*> find_seed(rectangle &new_rect);
 	std::vector<rectangle*> find_seed(rectangle & sibling, rectangle & new_rect);
+
 	//矩形分裂
 	void split(rectangle & new_rect);
 	void split_2to3(rectangle & sibling, rectangle & new_rect);

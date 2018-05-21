@@ -43,7 +43,7 @@ void rectangle::renovate()
 	//刷新这个矩形的范围
 	for (int i = 0; i < color_count; i++)
 	{
-		(*min_point)[i] = 2147483647;
+		(*min_point)[i] = INT_MAX;
 		(*max_point)[i] = 0;
 	}
 	for (int i = 0; i < child.size(); i++)
@@ -77,7 +77,7 @@ float rectangle::expand_cost(rectangle *new_rect)
 	float cost = 1;
 	for (int i = 0; i < color_count; i++)
 	{
-		if ((*min_point)[i] >(*new_rect->min_point)[i])
+		if ((*min_point)[i] > (*new_rect->min_point)[i])
 			min = (*new_rect->min_point)[i];
 		else
 			min = (*min_point)[i];
@@ -129,8 +129,8 @@ rectangle * rectangle::search_insert_position(rectangle &new_rect)
 	else
 	{
 		//这是一个非空非底层矩形，将在其子节点中寻找插入的节点
-		int min_cost = 2147483647;
-		int temp;
+		float min_cost = FLT_MAX;
+		float temp;
 		for (int i = 0; i < child.size(); i++)
 		{
 			temp = child[i]->expand_cost(&new_rect);
@@ -282,9 +282,7 @@ void rectangle::insert_2(rectangle & new_rect)
 		}
 	}
 	else
-	{
 		std::cout << "尝试将节点插入为点的子节点！" << std::endl;
-	}
 }
 
 void rectangle::delete_child(int index)
@@ -369,7 +367,6 @@ std::vector<rectangle*> rectangle::find_seed(rectangle & sibling, rectangle & ne
 			}
 		}
 	}
-
 	return seed;
 }
 
@@ -383,7 +380,6 @@ void rectangle::split(rectangle & new_rect)
 	int total_node_num = RECTANGLE_CAPABILITY + 1;
 	float cost1, cost2;
 	int max_r1_size = total_node_num / 2, max_r2_size = total_node_num - max_r1_size;
-
 	// 把一个矩形的节点和新加的节点分配到两个组
 	// 先将新加的点分配
 	if (&new_rect != seed[1]) { //  新加的点不是seed
@@ -454,8 +450,8 @@ void rectangle::split_2to3(rectangle & sibling, rectangle & new_rect)
 		max_r3_size = total_node_num - max_r1_size - max_r2_size;
 	int index; // 最小cost的编号
 
-			   // 把2个矩形的节点和新加的节点分配到3个组
-			   // 先将新加的点分配
+	// 把2个矩形的节点和新加的节点分配到3个组
+	// 先将新加的点分配
 	if (&new_rect != seed[2]) { // 新加的点不是seed
 		cost1 = new_rect.expand_cost(seed[0]);
 		cost2 = new_rect.expand_cost(seed[1]);
@@ -617,7 +613,7 @@ void rectangle::_knn_search(rectangle & target, std::vector<rectangle*>* result,
 	}
 
 	// 结果个数不足时，基于这些矩形扩充（在expand函数）
-	if (leaf_flag && overlap(target))
+	if (leaf_flag && overlap(target) && overlap_node)
 		overlap_node->push_back(this);
 
 	delete[]best_dist;

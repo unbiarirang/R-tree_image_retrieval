@@ -3,3 +3,9 @@ Indexing_Images_for_Content_Based_Retrieval.sln
 *.vcxproj
 *.filters
 Indexing_Images_for_Content_Based_Retrieval/Debug/
+*.db
+*.opendb
+*.ipch
+*.enc
+*.idb
+*.tlog
