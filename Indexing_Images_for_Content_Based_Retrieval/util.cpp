@@ -1,7 +1,7 @@
 #include "util.h"
 
-int min_index_of_three(int x, int y, int z) {
-	int min = x;
+int min_index_of_three(float x, float y, float z) {
+	float min = x;
 	int index = 0;
 
 	if (y < min) {

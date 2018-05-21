@@ -31,6 +31,9 @@ int main()
 	{
 		(root->search_insert_position(v[i]))->insert(v[i]);
 	}
+
+	std::vector<rectangle*>* res = new std::vector<rectangle*>();
+	root->knn_search(v[0], res, 4);
 	//树构建完成
 	system("pause");
 	return 0;

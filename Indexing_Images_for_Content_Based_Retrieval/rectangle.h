@@ -18,8 +18,8 @@ public:
 	//刷新此矩形体积、坐标
 	void renovate();
 	//计算这个矩形如果要容纳另一个矩形的话，需要的扩张代价（此步骤依赖方形模型）
-	int expand_cost(rectangle *new_rect);
-	int expand_cost(rectangle *rect1, rectangle *rect2); // 覆盖三个矩形时的代价
+	float expand_cost(rectangle *new_rect);
+	float expand_cost(rectangle *rect1, rectangle *rect2); // 覆盖三个矩形时的代价
 	//查找新点应当插入的最底层中间节点
 	rectangle* search_insert_position(rectangle &new_rect);
 	//插入一个新的节点为此节点的子节点
@@ -38,8 +38,10 @@ public:
 	//（简单的）搜索
 	void naive_search(rectangle & target, std::vector<rectangle*>* result);
 	// knn搜索，搜索最近need_count个节点
-	// max_dist用于expand函数递归时传值，对knn_search本身没用
-	void knn_search(rectangle & target, std::vector<rectangle*>* result, int need_count, float &max_dist);
+	// max_dist是欧氏距离 用于expand函数递归时传值 对knn_search本身没用
+	void knn_search(rectangle & target, std::vector<rectangle*>* result, int need_count);
+	void _knn_search(rectangle & target, std::vector<rectangle*>* result,
+		int need_count, float &max_dist, std::vector<rectangle*>* overlap_node);
 	void expand(rectangle & target, std::vector<rectangle*>* result, int need_count, float &max_dist);
 	// 计算Euclidean distance
 	float get_min_distance(rectangle & node);
