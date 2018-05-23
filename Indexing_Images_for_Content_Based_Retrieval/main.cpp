@@ -49,8 +49,25 @@ int main()
 		new_image.point_data = p;
 		image_points.push_back(new_image);
 	}
-      
+
+	std::vector<rectangle*>* result=new std::vector<rectangle*>;
+	root=new rectangle(RECTANGLE);
+
+	for(int j=0;j<image_points.size();j++)
+	{
+		image_points[j].max_point=image_points[j].point_data->data;
+		image_points[j].min_point=image_points[j].point_data->data;
+	}
 	
+	for(int i=0;i<image_points.size();i++)
+	{
+		(root->search_insert_position(image_points[i]))->insert(image_points[i]);
+		//std::cout<<image_points[j].point_data->data[0][i]<<std::endl;
+	}
+	std::cout<<std::endl;
+	root->naive_search(image_points[0], result);
+	//root->knn_search(image_points[0], result, 10);
+
 	/*for (int i = 0; i < 100; i++)
 	{
 		v.push_back(rectangle(POINT));
