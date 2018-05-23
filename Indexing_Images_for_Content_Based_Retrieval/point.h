@@ -7,7 +7,7 @@
 //矩形内部最多存储的子矩形数
 #define RECTANGLE_CAPABILITY 5
 //颜色维数
-#define COLOR_COUNT 3
+#define COLOR_COUNT 4
 
 class point
 {
