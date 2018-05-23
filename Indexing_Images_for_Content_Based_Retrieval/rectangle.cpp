@@ -294,7 +294,7 @@ void rectangle::init_point_data(std::string _image_path, std::string _image_name
 {
 	point_data->color_count = color_count;
 	point_data->image_path = _image_path;
-	point_data->image_name = _image_name;
+	//point_data->image_name = _image_name;
 	point_data->data = _data;
 }
 

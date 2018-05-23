@@ -18,7 +18,7 @@ public:
 	//图片路径
 	std::string image_path;
 	//图片名称
-	std::string image_name;
+	char image_name[100];
 	//颜色维数
 	int color_count;
 	//储存颜色具体数据

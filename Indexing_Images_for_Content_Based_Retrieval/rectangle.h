@@ -68,6 +68,5 @@ public:
 	std::vector<int>* max_point;
 	//矩形体积（各维度数据之乘积）
 	int volume;
-	char name[100];
 };
 
