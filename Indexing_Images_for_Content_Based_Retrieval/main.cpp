@@ -27,7 +27,7 @@ int main()
 	root=new rectangle(RECTANGLE);
 	for (int i = 0; i < 100; i++)
 	{
-		(root->search_insert_position(v[i]))->insert(v[i]);
+		(root->search_insert_position(v[i]))->insert_2(v[i]);
 	}
 
 	rectangle *target = new rectangle(RECTANGLE);
@@ -38,8 +38,8 @@ int main()
 	(*target->max_point)[1] = 30;
 	(*target->max_point)[2] = 30;
 
-	std::vector<rectangle*>* result=new std::vector<rectangle*>;
-	root->knn_search(v[0], result, 7);
+	std::vector<rectangle*>* result = new std::vector<rectangle*>;
+	root->knn_search(v[0], result, 3);
 	//root->naive_search(*target, result);
 	system("pause");
 	return 0;

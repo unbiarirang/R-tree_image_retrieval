@@ -14,7 +14,7 @@ public:
 	rectangle(rectangle_type t);
 	~rectangle();
 
-	//（m是偶数）分裂时，将这m+1个点按所有维度数据之和排序，最小的m/2和最大的m/2分别作为新的节点，中间一个插入父节点
+	//（m是奇数）分裂时，将这m+1个点按所有维度数据之和排序，最小的m/2和最大的m/2分别作为新的节点，中间一个插入父节点
 	//刷新此矩形体积、坐标
 	void renovate();
 	//计算这个矩形如果要容纳另一个矩形的话，需要的扩张代价（此步骤依赖方形模型）
@@ -30,14 +30,22 @@ public:
 
 	//点数据加载
 	void init_point_data(std::string _image_path, std::string _image_name, std::vector<int>* _data);
-	// 选用一个大矩形覆盖两/三个矩形时浪费掉的空间最大的两/三个矩形。n为所找seed个数
-	std::vector<rectangle*> find_seed(rectangle &new_rect);
-	std::vector<rectangle*> find_seed(rectangle & sibling, rectangle & new_rect);
 
 	//矩形分裂
-	void split(rectangle & new_rect);
-	void split_2to3(rectangle & sibling, rectangle & new_rect);
-	//（简单的）搜索
+	void split(rectangle & new_rect);		// 把点分成左下角和右上角两个部分					
+	void split_2to3(rectangle & new_rect);	// 把满的兄弟两个节点分成三个节点，分的次数少，装载比例高
+	void split_quadratic(rectangle & new_rect);	// Guttman's quadratic split
+	// 选用一个大矩形覆盖两/三个矩形时浪费掉的空间最大的两/三个矩形。n为所找seed个数
+	std::vector<rectangle*> find_seed(rectangle* new_rect);
+	std::vector<rectangle*> find_seed(rectangle* sibling, rectangle* new_rect);
+	rectangle* get_sibling();
+
+	// 合并
+	void merge(std::vector<rectangle*>* r1, std::vector<rectangle*>* r2);
+	void merge(std::vector<rectangle*>* r1, std::vector<rectangle*>* r2, std::vector<rectangle*>* r3);
+
+	// 搜索
+	// 简单搜索
 	void naive_search(rectangle & target, std::vector<rectangle*>* result);
 	// knn搜索，搜索最近need_count个节点
 	// max_dist用于expand函数递归时传值，对knn_search本身没用

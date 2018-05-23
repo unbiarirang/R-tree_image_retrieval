@@ -117,7 +117,6 @@ float rectangle::expand_cost(rectangle *rect1, rectangle *rect2)
 	return cost - volume - rect1->volume - rect2->volume;
 }
 
-
 rectangle * rectangle::search_insert_position(rectangle &new_rect)
 {
 	rectangle* result = this;
@@ -163,99 +162,7 @@ void rectangle::insert(rectangle &new_rect)
 		}
 		else
 		{
-			//本矩形已满，需要分裂
-			int index[RECTANGLE_CAPABILITY + 1];
-			int num[RECTANGLE_CAPABILITY + 1];
-			for (int i = 0; i < RECTANGLE_CAPABILITY; i++)
-			{
-				num[i] = child[i]->volume;
-				index[i] = i;
-				//然后排序，前（RECTANGLE_CAPABILITY + 1）/2放一堆，剩下的new一堆，把那一堆调用parent->insert(new）；
-				//！！！记得考虑根节点的特殊情况！
-			}
-			num[RECTANGLE_CAPABILITY] = new_rect.volume;
-			index[RECTANGLE_CAPABILITY] = RECTANGLE_CAPABILITY;
-			//对num进行排序,由index记忆结果
-			unsigned int temp1 = 0;
-			int temp2 = 0;
-			int j;
-			for (int i = 1; i < RECTANGLE_CAPABILITY + 1; i++)
-			{
-				temp1 = num[i];//从待插入组取出第一个元素。 
-				temp2 = index[i];
-				j = i - 1; //i-1即为有序组最后一个元素（与待插入元素相邻）的下标   
-				while (j >= 0 && temp1 < num[j])  //判断条件为两个，j>=0对其进行边界限制。第二个为插入判断条件
-				{
-					num[j + 1] = num[j];//若不是合适位置，有序组元素向后移动
-					index[j + 1] = index[j];
-					j--;
-				}
-				num[j + 1] = temp1;//找到合适位置，将元素插入。
-				index[j + 1] = temp2;
-			}
-			for (int i = (RECTANGLE_CAPABILITY + 1) / 2; i < RECTANGLE_CAPABILITY + 1; i++)
-			{
-				temp2 = index[i];//从待插入组取出第一个元素。 
-				j = i - 1; //i-1即为有序组最后一个元素（与待插入元素相邻）的下标   
-				while (j >= (RECTANGLE_CAPABILITY + 1) / 2 && temp2 < index[j])  //判断条件为两个，j>=0对其进行边界限制。第二个为插入判断条件
-				{
-					index[j + 1] = index[j];//若不是合适位置，有序组元素向后移动
-					j--;
-				}
-				index[j + 1] = temp2;//找到合适位置，将元素插入。
-			}
-			//排序完成
-			//输出一下结果检验一下
-			std::cout << "发生节点分裂，此时，应当是：前一半是size递增且面积较小的元素，后一半是index递增的元素，size数组排序后为：" << std::endl;
-			for (int i = 0; i < RECTANGLE_CAPABILITY + 1; i++)
-			{
-				std::cout << num[i] << " " ;
-			}
-			std::cout << std::endl << "index数组排序后为：";
-			for (int i = 0; i < RECTANGLE_CAPABILITY + 1; i++)
-			{
-				std::cout << index[i] << " ";
-			}
-			std::cout << std::endl;
-			//此时，应当是：前一半是size递增且较小的元素，后一半是index递增的元素
-			rectangle *temp_rect = new rectangle(RECTANGLE);
-			for (int i = RECTANGLE_CAPABILITY; i >= (RECTANGLE_CAPABILITY + 1) / 2; i--)
-			{
-				if (index[i] != RECTANGLE_CAPABILITY)
-				{
-					//是原节点中有的元素
-					temp_rect->insert(*(child[index[i]]));
-					//从原节点删去
-					delete_child(index[i]);
-				}
-				else
-				{
-					//是刚加的新元素
-					temp_rect->insert(new_rect);
-				}
-			}
-			renovate();
-			temp_rect->renovate();
-			//新节点创建完毕，将其插入自己的父节点，使之和自己地位相同
-			//考虑树增高
-			if (parent != nullptr)
-			{
-				//这不是根节点
-				temp_rect->parent = parent;
-				parent->insert(*temp_rect);
-			}
-			else
-			{
-				//根节点分裂成了2个，不再是根节点
-				rectangle *new_root = new rectangle(RECTANGLE);
-				new_root->child.push_back(temp_rect);
-				temp_rect->parent = new_root;
-				new_root->child.push_back(this);
-				parent = new_root;
-				new_root->renovate();
-				root = new_root;
-				std::cout << "树发生了增高，根节点改变！" << std::endl;
-			}
+			split(new_rect);
 		}
 	}
 	else
@@ -278,7 +185,7 @@ void rectangle::insert_2(rectangle & new_rect)
 		else
 		{
 			//本矩形已满，需要分裂
-			split(new_rect);
+			split_quadratic(new_rect);
 		}
 	}
 	else
@@ -299,7 +206,7 @@ void rectangle::init_point_data(std::string _image_path, std::string _image_name
 }
 
 // 选用一个大矩形覆盖两个矩形时浪费掉的空间最大的两个矩形
-std::vector<rectangle*> rectangle::find_seed(rectangle &new_rect)
+std::vector<rectangle*> rectangle::find_seed(rectangle* new_rect)
 {
 	float max_waste_volume = 0;
 	float v = 0;
@@ -311,18 +218,18 @@ std::vector<rectangle*> rectangle::find_seed(rectangle &new_rect)
 		for (int j = i + 1; j < child.size(); j++) {
 			v = child[i]->expand_cost(child[j]);
 			if (v > max_waste_volume) {
-				v = max_waste_volume;
+				max_waste_volume = v;
 				seed[0] = child[i];
 				seed[1] = child[j];
 			}
 		}
 
 		// 跟new_rect也进行比较
-		v = child[i]->expand_cost(&new_rect);
+		v = child[i]->expand_cost(new_rect);
 		if (v > max_waste_volume) {
-			v = max_waste_volume;
+			max_waste_volume = v;
 			seed[0] = child[i];
-			seed[1] = &new_rect;
+			seed[1] = new_rect;
 		}
 	}
 
@@ -330,7 +237,7 @@ std::vector<rectangle*> rectangle::find_seed(rectangle &new_rect)
 }
 
 // 选出三个种子矩形
-std::vector<rectangle*> rectangle::find_seed(rectangle & sibling, rectangle & new_rect) {
+std::vector<rectangle*> rectangle::find_seed(rectangle* sibling, rectangle* new_rect) {
 	float max_waste_volume = 0;
 	float v = 0;
 
@@ -341,16 +248,16 @@ std::vector<rectangle*> rectangle::find_seed(rectangle & sibling, rectangle & ne
 	std::vector<rectangle*> nodes;
 	for (int i = 0; i < this->child.size(); i++)
 		nodes.push_back(this->child[i]);
-	for (int i = 0; i < sibling.child.size(); i++)
-		nodes.push_back(sibling.child[i]);
-	nodes.push_back(&new_rect);
+	for (int i = 0; i < sibling->child.size(); i++)
+		nodes.push_back(sibling->child[i]);
+	nodes.push_back(new_rect);
 
 	for (int i = 0; i < nodes.size(); i++) {
 		for (int j = i + 1; j < nodes.size(); j++) {
 			for (int k = j + 1; k < nodes.size(); k++) {
 				v = nodes[i]->expand_cost(nodes[j], nodes[k]);
 				if (v > max_waste_volume) {
-					v = max_waste_volume;
+					max_waste_volume = v;
 					seed[0] = nodes[i];
 					seed[1] = nodes[j];
 					seed[2] = nodes[k];
@@ -358,30 +265,136 @@ std::vector<rectangle*> rectangle::find_seed(rectangle & sibling, rectangle & ne
 			}
 
 			// 跟new_rect也进行比较
-			v = nodes[i]->expand_cost(nodes[j], &new_rect);
+			v = nodes[i]->expand_cost(nodes[j], new_rect);
 			if (v > max_waste_volume) {
-				v = max_waste_volume;
+				max_waste_volume = v;
 				seed[0] = nodes[i];
 				seed[1] = nodes[j];
-				seed[2] = &new_rect;
+				seed[2] = new_rect;
 			}
 		}
 	}
 	return seed;
 }
 
+rectangle * rectangle::get_sibling()
+{
+	return nullptr;
+}
+
 void rectangle::split(rectangle & new_rect)
 {
+	//本矩形已满，需要分裂
+	int index[RECTANGLE_CAPABILITY + 1];
+	int num[RECTANGLE_CAPABILITY + 1];
+	for (int i = 0; i < RECTANGLE_CAPABILITY; i++)
+	{
+		num[i] = child[i]->volume;
+		index[i] = i;
+		//然后排序，前（RECTANGLE_CAPABILITY + 1）/2放一堆，剩下的new一堆，把那一堆调用parent->insert(new）；
+		//！！！记得考虑根节点的特殊情况！
+	}
+	num[RECTANGLE_CAPABILITY] = new_rect.volume;
+	index[RECTANGLE_CAPABILITY] = RECTANGLE_CAPABILITY;
+	//对num进行排序,由index记忆结果
+	unsigned int temp1 = 0;
+	int temp2 = 0;
+	int j;
+	for (int i = 1; i < RECTANGLE_CAPABILITY + 1; i++)
+	{
+		temp1 = num[i];//从待插入组取出第一个元素。 
+		temp2 = index[i];
+		j = i - 1; //i-1即为有序组最后一个元素（与待插入元素相邻）的下标   
+		while (j >= 0 && temp1 < num[j])  //判断条件为两个，j>=0对其进行边界限制。第二个为插入判断条件
+		{
+			num[j + 1] = num[j];//若不是合适位置，有序组元素向后移动
+			index[j + 1] = index[j];
+			j--;
+		}
+		num[j + 1] = temp1;//找到合适位置，将元素插入。
+		index[j + 1] = temp2;
+	}
+	for (int i = (RECTANGLE_CAPABILITY + 1) / 2; i < RECTANGLE_CAPABILITY + 1; i++)
+	{
+		temp2 = index[i];//从待插入组取出第一个元素。 
+		j = i - 1; //i-1即为有序组最后一个元素（与待插入元素相邻）的下标   
+		while (j >= (RECTANGLE_CAPABILITY + 1) / 2 && temp2 < index[j])  //判断条件为两个，j>=0对其进行边界限制。第二个为插入判断条件
+		{
+			index[j + 1] = index[j];//若不是合适位置，有序组元素向后移动
+			j--;
+		}
+		index[j + 1] = temp2;//找到合适位置，将元素插入。
+	}
+	//排序完成
+	//输出一下结果检验一下
+	std::cout << "发生节点分裂，此时，应当是：前一半是size递增且面积较小的元素，后一半是index递增的元素，size数组排序后为：" << std::endl;
+	for (int i = 0; i < RECTANGLE_CAPABILITY + 1; i++)
+	{
+		std::cout << num[i] << " ";
+	}
+	std::cout << std::endl << "index数组排序后为：";
+	for (int i = 0; i < RECTANGLE_CAPABILITY + 1; i++)
+	{
+		std::cout << index[i] << " ";
+	}
+	std::cout << std::endl;
+	//此时，应当是：前一半是size递增且较小的元素，后一半是index递增的元素
+	rectangle *temp_rect = new rectangle(RECTANGLE);
+	for (int i = RECTANGLE_CAPABILITY; i >= (RECTANGLE_CAPABILITY + 1) / 2; i--)
+	{
+		if (index[i] != RECTANGLE_CAPABILITY)
+		{
+			//是原节点中有的元素
+			temp_rect->insert(*(child[index[i]]));
+			//从原节点删去
+			delete_child(index[i]);
+		}
+		else
+		{
+			//是刚加的新元素
+			temp_rect->insert(new_rect);
+		}
+	}
+	renovate();
+	temp_rect->renovate();
+	//新节点创建完毕，将其插入自己的父节点，使之和自己地位相同
+	//考虑树增高
+	if (parent != nullptr)
+	{
+		//这不是根节点
+		temp_rect->parent = parent;
+		parent->insert(*temp_rect);
+	}
+	else
+	{
+		//根节点分裂成了2个，不再是根节点
+		rectangle *new_root = new rectangle(RECTANGLE);
+		new_root->child.push_back(temp_rect);
+		temp_rect->parent = new_root;
+		new_root->child.push_back(this);
+		parent = new_root;
+		new_root->renovate();
+		root = new_root;
+		std::cout << "*****树发生了增高，根节点改变！*****\n" << std::endl;
+	}
+}
+
+void rectangle::split_quadratic(rectangle & new_rect)
+{
 	// 令new_rect的index为child.size()。seed[1]_index可能等于child.size
-	std::vector<rectangle*> seed = find_seed(new_rect);
+	std::vector<rectangle*> seed = find_seed(&new_rect);
 
 	// 矩形的节点和新加的节点合并生成2个新的矩形，其子节点分别暂存在r1，r2
 	std::vector<rectangle*> r1, r2;
 	int total_node_num = RECTANGLE_CAPABILITY + 1;
 	float cost1, cost2;
 	int max_r1_size = total_node_num / 2, max_r2_size = total_node_num - max_r1_size;
+
 	// 把一个矩形的节点和新加的节点分配到两个组
-	// 先将新加的点分配
+	// 将种子节点分配
+	r1.push_back(seed[0]);
+	r2.push_back(seed[1]);
+	// 将新加的点分配
 	if (&new_rect != seed[1]) { //  新加的点不是seed
 		cost1 = new_rect.expand_cost(seed[0]);
 		cost2 = new_rect.expand_cost(seed[1]);
@@ -392,17 +405,10 @@ void rectangle::split(rectangle & new_rect)
 		else
 			r2.push_back(&new_rect);
 	}
-	else // 新加的点是seed
-		r2.push_back(&new_rect);
 
 	// 将两个矩形里的点分配
 	for (int i = 0; i < child.size(); i++) {
-		if (child[i] == seed[0]) {
-			r1.push_back(child[i]); continue;
-		}
-		if (child[i] == seed[1]) {
-			r2.push_back(child[i]); continue;
-		}
+		if (child[i] == seed[0] || child[i] == seed[1]) continue;
 
 		// 一个组合已满,自动分到另一个组
 		if (r1.size() >= max_r1_size) {
@@ -421,25 +427,14 @@ void rectangle::split(rectangle & new_rect)
 		else
 			r2.push_back(child[i]);
 	}
-	child.clear();
 
-
-	// FIXME - create 2 rectangles with 2 rectangle vector
-	rectangle *split_rect = new rectangle(RECTANGLE);
-	for (int i = 0; i < r1.size(); i++)
-		this->insert_2(*r1[i]);
-	for (int i = 0; i < r2.size(); i++)
-		split_rect->insert_2(*r2[i]);
-
-	renovate();
-	split_rect->renovate();
-	split_rect->parent = parent;
-	parent->insert_2(*split_rect);
+	merge(&r1, &r2);
 }
 
-void rectangle::split_2to3(rectangle & sibling, rectangle & new_rect)
+void rectangle::split_2to3(rectangle & new_rect)
 {
-	std::vector<rectangle*> seed = find_seed(sibling, new_rect);
+	rectangle* sibling = get_sibling();
+	std::vector<rectangle*> seed = find_seed(sibling, &new_rect);
 
 	// 2个矩形的节点和新加的节点合并生成3个新的矩形，其子节点分别暂存在r1，r2，r3
 	std::vector<rectangle*> r1, r2, r3;
@@ -451,7 +446,11 @@ void rectangle::split_2to3(rectangle & sibling, rectangle & new_rect)
 	int index; // 最小cost的编号
 
 	// 把2个矩形的节点和新加的节点分配到3个组
-	// 先将新加的点分配
+	// 将种子节点分配
+	r1.push_back(seed[0]);
+	r2.push_back(seed[1]);
+	r3.push_back(seed[2]);
+	// 将新加的点分配
 	if (&new_rect != seed[2]) { // 新加的点不是seed
 		cost1 = new_rect.expand_cost(seed[0]);
 		cost2 = new_rect.expand_cost(seed[1]);
@@ -471,15 +470,8 @@ void rectangle::split_2to3(rectangle & sibling, rectangle & new_rect)
 
 	for (int i = 0; i < total_node_num - 1; i++) {
 		// 自己本身是seed
-		if (child[i] == seed[0]) {
-			r1.push_back(child[i]); continue;
-		}
-		if (child[i] == seed[1]) {
-			r2.push_back(child[i]); continue;
-		}
-		if (child[i] == seed[2]) {
-			r3.push_back(child[i]); continue;
-		}
+		if (child[i] == seed[0] || child[i] == seed[1] || child[i] == seed[2])
+			continue;
 
 		// 计算扩充代价
 		cost1 = child[i]->expand_cost(seed[0]);
@@ -503,13 +495,14 @@ void rectangle::split_2to3(rectangle & sibling, rectangle & new_rect)
 			r3.push_back(child[i]);
 	}
 	child.clear();
+	child.reserve(RECTANGLE_CAPABILITY + 1);
 
 	// FIXME - create 3 rectangles with 3 rectangle vector
 	rectangle *split_rect = new rectangle(RECTANGLE);
 	for (int i = 0; i < r1.size(); i++)
 		this->insert_2(*r1[i]);
 	for (int i = 0; i < r2.size(); i++)
-		sibling.insert_2(*r2[i]);
+		sibling->insert_2(*r2[i]);
 	for (int i = 0; i < r3.size(); i++)
 		split_rect->insert_2(*r3[i]);
 
@@ -517,6 +510,44 @@ void rectangle::split_2to3(rectangle & sibling, rectangle & new_rect)
 	split_rect->renovate();
 	split_rect->parent = parent;
 	parent->insert(*split_rect);
+}
+
+void rectangle::merge(std::vector<rectangle*>* r1, std::vector<rectangle*>* r2)
+{
+	child.clear();
+	child.reserve(RECTANGLE_CAPABILITY + 1);
+
+	rectangle *split_rect = new rectangle(RECTANGLE);
+	for (int i = 0; i < r1->size(); i++)
+		this->insert_2(*(*r1)[i]);
+	for (int i = 0; i < r2->size(); i++)
+		split_rect->insert_2(*(*r2)[i]);
+
+	renovate();
+	split_rect->renovate();
+
+	if (parent != nullptr)
+	{
+		//这不是根节点
+		split_rect->parent = parent;
+		parent->insert_2(*split_rect);
+	}
+	else
+	{
+		//根节点分裂成了2个，不再是根节点
+		rectangle *new_root = new rectangle(RECTANGLE);
+		new_root->child.push_back(split_rect);
+		split_rect->parent = new_root;
+		new_root->child.push_back(this);
+		parent = new_root;
+		new_root->renovate();
+		root = new_root;
+		std::cout << "*****树发生了增高，根节点改变！*****\n" << std::endl;
+	}
+}
+
+void rectangle::merge(std::vector<rectangle*>* r1, std::vector<rectangle*>* r2, std::vector<rectangle*>* r3)
+{
 }
 
 void rectangle::naive_search(rectangle & target, std::vector<rectangle*>* result)
