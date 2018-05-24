@@ -3,6 +3,10 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <fstream>
+#include <sstream>
+#include <cmath>
+#include <algorithm>
 
 #include "point.h"
 
@@ -11,7 +15,7 @@ enum rectangle_type { POINT = 0, RECTANGLE };
 class rectangle
 {
 public:
-	rectangle(rectangle_type t);
+	rectangle(rectangle_type t, std::vector<int> * min_point_data = nullptr, std::vector<int> * max_point_data = nullptr);
 	~rectangle();
 
 	//（m是奇数）分裂时，将这m+1个点按所有维度数据之和排序，最小的m/2和最大的m/2分别作为新的节点，中间一个插入父节点
@@ -46,7 +50,7 @@ public:
 
 	// 搜索
 	// 简单搜索
-	void naive_search(rectangle & target, std::vector<rectangle*>* result);
+	void naive_search(rectangle & target, std::vector<rectangle*>* result, int interval = -1);
 	// knn搜索，搜索最近need_count个节点
 	// max_dist用于expand函数递归时传值，对knn_search本身没用
 	void knn_search(rectangle & target, std::vector<rectangle*>* result, int need_count);
@@ -78,3 +82,4 @@ public:
 	int volume;
 };
 
+void create_tree_from_file(std::string file_name);

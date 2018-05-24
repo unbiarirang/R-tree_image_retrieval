@@ -1,11 +1,10 @@
 #include "rectangle.h"
 #include "util.h"
-#include <cmath>
-#include <algorithm>
 
 extern rectangle *root;
+extern std::vector<rectangle*> image_data;
 
-rectangle::rectangle(rectangle_type t)
+rectangle::rectangle(rectangle_type t, std::vector<int> * min_point_data, std::vector<int> * max_point_data)
 {
 	color_count = COLOR_COUNT;
 	if (t == POINT)
@@ -14,9 +13,17 @@ rectangle::rectangle(rectangle_type t)
 		point_data = new point();
 		parent = nullptr;
 		child.reserve(RECTANGLE_CAPABILITY + 1);
-		min_point = new std::vector<int>;
-		min_point->resize(color_count);
-		max_point = min_point;
+		if (min_point_data != nullptr)
+		{
+			min_point = min_point_data;
+			max_point = min_point_data;
+		}
+		else
+		{
+			min_point = new std::vector<int>;
+			min_point->resize(color_count);
+			max_point = min_point;
+		}
 		volume = 0;
 	}
 	else if (t == RECTANGLE)
@@ -25,10 +32,19 @@ rectangle::rectangle(rectangle_type t)
 		point_data = nullptr;
 		parent = nullptr;
 		child.reserve(RECTANGLE_CAPABILITY + 1);
-		min_point = new std::vector<int>;
-		min_point->resize(color_count);
-		max_point = new std::vector<int>;
-		max_point->resize(color_count);
+		if (min_point_data != nullptr && max_point_data != nullptr)
+		{
+			min_point = min_point_data;
+			max_point = max_point_data;
+			renovate();
+		}
+		else
+		{
+			min_point = new std::vector<int>;
+			min_point->resize(color_count);
+			max_point = new std::vector<int>;
+			max_point->resize(color_count);
+		}
 		volume = 0;
 	}
 }
@@ -40,34 +56,38 @@ rectangle::~rectangle()
 
 void rectangle::renovate()
 {
-	//刷新这个矩形的范围
-	for (int i = 0; i < color_count; i++)
+	//根据这个矩形的孩子，刷新这个矩形的范围
+	if (type == RECTANGLE && child.size() != 0)
 	{
-		(*min_point)[i] = INT_MAX;
-		(*max_point)[i] = 0;
-	}
-	for (int i = 0; i < child.size(); i++)
-	{
-		for (int m = 0; m < color_count; m++)
+		for (int i = 0; i < color_count; i++)
 		{
-			if ((*min_point)[m] >(*child[i]->min_point)[m])
+			(*min_point)[i] = 2147483647;
+			(*max_point)[i] = 0;
+		}
+		for (int i = 0; i < child.size(); i++)
+		{
+			for (int m = 0; m < color_count; m++)
 			{
-				(*min_point)[m] = (*child[i]->min_point)[m];
-			}
-			if ((*max_point)[m] <(*child[i]->max_point)[m])
-			{
-				(*max_point)[m] = (*child[i]->max_point)[m];
+				if ((*min_point)[m] >(*child[i]->min_point)[m])
+				{
+					(*min_point)[m] = (*child[i]->min_point)[m];
+				}
+				if ((*max_point)[m] < (*child[i]->max_point)[m])
+				{
+					(*max_point)[m] = (*child[i]->max_point)[m];
+				}
 			}
 		}
-	}
-	//刷新这个矩形的体积
-	int count = 1;
-	for (int i = 0; i < color_count; i++)
-	{
-		count *= (*max_point)[i] - (*min_point)[i];
-	}
-	volume = count;
+		//刷新这个矩形的体积
+		unsigned long long int count = 1;
+		for (int i = 0; i < color_count; i++)
+		{
+			if (count>10) count /= 10;	//避免越界的无奈之举！！！
+			count *= (*max_point)[i] - (*min_point)[i];
+		}
+		volume = count;
 
+	}
 }
 
 float rectangle::expand_cost(rectangle *new_rect)
@@ -286,13 +306,13 @@ void rectangle::split(rectangle & new_rect)
 {
 	//本矩形已满，需要分裂
 	int index[RECTANGLE_CAPABILITY + 1];
-	int num[RECTANGLE_CAPABILITY + 1];
+	unsigned long long int num[RECTANGLE_CAPABILITY + 1];
 	for (int i = 0; i < RECTANGLE_CAPABILITY; i++)
 	{
 		num[i] = child[i]->volume;
 		index[i] = i;
 		//然后排序，前（RECTANGLE_CAPABILITY + 1）/2放一堆，剩下的new一堆，把那一堆调用parent->insert(new）；
-		//！！！记得考虑根节点的特殊情况！
+		//记得考虑根节点的特殊情况
 	}
 	num[RECTANGLE_CAPABILITY] = new_rect.volume;
 	index[RECTANGLE_CAPABILITY] = RECTANGLE_CAPABILITY;
@@ -327,17 +347,22 @@ void rectangle::split(rectangle & new_rect)
 	}
 	//排序完成
 	//输出一下结果检验一下
-	std::cout << "发生节点分裂，此时，应当是：前一半是size递增且面积较小的元素，后一半是index递增的元素，size数组排序后为：" << std::endl;
-	for (int i = 0; i < RECTANGLE_CAPABILITY + 1; i++)
+	//底层叶子节点分裂很平凡，子节点面积都是0，排序都是0,1,2,3,4,5
+	if (child[0]->type == RECTANGLE)
 	{
-		std::cout << num[i] << " ";
+		std::cout << "发生节点分裂，此时，应当是：前一半是size递增且面积较小的元素，后一半是index递增的元素，size数组排序后为：" << std::endl;
+		for (int i = 0; i < RECTANGLE_CAPABILITY + 1; i++)
+		{
+			std::cout << num[i] << " ";
+		}
+		std::cout << std::endl << "index数组排序后为：";
+		for (int i = 0; i < RECTANGLE_CAPABILITY + 1; i++)
+		{
+			std::cout << index[i] << " ";
+		}
+		std::cout << std::endl << std::endl;
 	}
-	std::cout << std::endl << "index数组排序后为：";
-	for (int i = 0; i < RECTANGLE_CAPABILITY + 1; i++)
-	{
-		std::cout << index[i] << " ";
-	}
-	std::cout << std::endl;
+
 	//此时，应当是：前一半是size递增且较小的元素，后一半是index递增的元素
 	rectangle *temp_rect = new rectangle(RECTANGLE);
 	for (int i = RECTANGLE_CAPABILITY; i >= (RECTANGLE_CAPABILITY + 1) / 2; i--)
@@ -375,7 +400,7 @@ void rectangle::split(rectangle & new_rect)
 		parent = new_root;
 		new_root->renovate();
 		root = new_root;
-		std::cout << "*****树发生了增高，根节点改变！*****\n" << std::endl;
+		std::cout << "树发生了增高，根节点改变！" << std::endl;
 	}
 }
 
@@ -550,21 +575,36 @@ void rectangle::merge(std::vector<rectangle*>* r1, std::vector<rectangle*>* r2, 
 {
 }
 
-void rectangle::naive_search(rectangle & target, std::vector<rectangle*>* result)
+void rectangle::naive_search(rectangle & target, std::vector<rectangle*>* result, int interval)
 {
-	for (int i = 0; i < child.size(); i++)
+	if (target.type == RECTANGLE)
 	{
-		if (child[i]->overlap(target))
+		for (int i = 0; i < child.size(); i++)
 		{
-			if (child[i]->type == POINT)
+			if (child[i]->overlap(target))
 			{
-				result->push_back(child[i]);
-			}
-			else if (child[i]->type == RECTANGLE)
-			{
-				child[i]->naive_search(target, result);
+				if (child[i]->type == POINT)
+				{
+					result->push_back(child[i]);
+				}
+				else if (child[i]->type == RECTANGLE)
+				{
+					child[i]->naive_search(target, result);
+				}
 			}
 		}
+	}
+	else if (target.type == POINT && interval != -1)
+	{
+		rectangle rect(RECTANGLE);
+		for (int i = 0; i < rect.color_count; i++)
+		{
+			(*rect.max_point)[i] = (*target.max_point)[i] + interval;
+			(*rect.min_point)[i] = (*target.min_point)[i] - interval;
+			if ((*rect.min_point)[i] < 0)
+				(*rect.min_point)[i] = 0;
+		}
+		naive_search(rect, result);
 	}
 }
 
@@ -695,4 +735,39 @@ bool rectangle::overlap(rectangle & target)
 		}
 	}
 	return true;
+}
+
+
+void create_tree_from_file(std::string file_name)
+{
+	std::ifstream fin(file_name);
+	if (!fin.good()) {
+		std::cerr << "error: open file failed!\n";
+		abort();
+	}
+
+	std::string line;
+	std::vector<int>* point_data;
+	int ID = 1;
+	rectangle * new_rect;
+	while (std::getline(fin, line))
+	{
+		point_data = new std::vector<int>;
+		point_data->reserve(COLOR_COUNT);
+		std::stringstream analyse_line(line);
+		char c;
+		int num;
+		analyse_line >> c >> c >> c >> c;
+		for (int i = 0; i < COLOR_COUNT; i++)
+		{
+			analyse_line >> num;
+			point_data->push_back(num);
+		}
+		//点数据插入完毕
+		new_rect = new rectangle(POINT, point_data);
+		new_rect->point_data->ID = ID;
+		ID++;
+		image_data.push_back(new_rect);
+		(root->search_insert_position(*new_rect))->insert(*new_rect);
+	}
 }
