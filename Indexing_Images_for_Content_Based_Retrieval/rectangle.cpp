@@ -182,34 +182,15 @@ void rectangle::insert(rectangle &new_rect)
 		}
 		else
 		{
-			split(new_rect);
+			//split(new_rect);
+			//split_quadratic(new_rect);
+			split_2to3(new_rect);
 		}
 	}
 	else
 	{
 		std::cout << "尝试将节点插入为点的子节点！" << std::endl;
 	}
-}
-
-void rectangle::insert_2(rectangle & new_rect)
-{
-	if (type == RECTANGLE)
-	{
-		if (child.size() < RECTANGLE_CAPABILITY)
-		{
-			//不需分裂
-			child.push_back(&new_rect);
-			new_rect.parent = this;
-			renovate();
-		}
-		else
-		{
-			//本矩形已满，需要分裂
-			split_quadratic(new_rect);
-		}
-	}
-	else
-		std::cout << "尝试将节点插入为点的子节点！" << std::endl;
 }
 
 void rectangle::delete_child(int index)
@@ -297,9 +278,27 @@ std::vector<rectangle*> rectangle::find_seed(rectangle* sibling, rectangle* new_
 	return seed;
 }
 
-rectangle * rectangle::get_sibling()
+bool rectangle::get_sibling(rectangle** sibling)
 {
-	return nullptr;
+	float temp = 0, min_cost = INT_MAX;
+
+	// 找兄弟，兄弟指的是父亲的孩子们中扩充代价最小的矩形
+	for (int i = 0; i < parent->child.size(); i++) {
+		if (parent->child[i] == this) continue;
+
+		temp = expand_cost(parent->child[i]);
+		if (temp < min_cost) {
+			min_cost = temp;
+			*sibling = parent->child[i];
+		}
+	}
+
+	// 兄弟也已满，需要分裂
+	if ((*sibling)->child.size() == RECTANGLE_CAPABILITY)
+		return true;
+
+	// 兄弟没满，不需要分裂
+	return false;
 }
 
 void rectangle::split(rectangle & new_rect)
@@ -458,7 +457,22 @@ void rectangle::split_quadratic(rectangle & new_rect)
 
 void rectangle::split_2to3(rectangle & new_rect)
 {
-	rectangle* sibling = get_sibling();
+	// 此矩形是根结点，没有兄弟，直接1分为2
+	if (parent == nullptr) {
+		split_quadratic(new_rect);
+		return;
+	}
+
+	rectangle* sibling = nullptr;
+	bool need_split = get_sibling(&sibling);
+	// 自己的兄弟没满，把新的矩形插入给兄弟
+	if (need_split == false) {
+		new_rect.parent = sibling;
+		sibling->insert(new_rect);
+		return;
+	}
+
+	// 自己和自己的兄弟都已满，开始分裂
 	std::vector<rectangle*> seed = find_seed(sibling, &new_rect);
 
 	// 2个矩形的节点和新加的节点合并生成3个新的矩形，其子节点分别暂存在r1，r2，r3
@@ -470,11 +484,18 @@ void rectangle::split_2to3(rectangle & new_rect)
 		max_r3_size = total_node_num - max_r1_size - max_r2_size;
 	int index; // 最小cost的编号
 
+	std::vector<rectangle*> nodes;
+	for (int i = 0; i < child.size(); i++) {
+		nodes.push_back(child[i]);
+		nodes.push_back(sibling->child[i]);
+	}
+
 	// 把2个矩形的节点和新加的节点分配到3个组
 	// 将种子节点分配
 	r1.push_back(seed[0]);
 	r2.push_back(seed[1]);
 	r3.push_back(seed[2]);
+
 	// 将新加的点分配
 	if (&new_rect != seed[2]) { // 新加的点不是seed
 		cost1 = new_rect.expand_cost(seed[0]);
@@ -493,15 +514,15 @@ void rectangle::split_2to3(rectangle & new_rect)
 	else // 新加的点是seed
 		r3.push_back(&new_rect);
 
-	for (int i = 0; i < total_node_num - 1; i++) {
+	for (int i = 0; i < nodes.size(); i++) {
 		// 自己本身是seed
-		if (child[i] == seed[0] || child[i] == seed[1] || child[i] == seed[2])
+		if (nodes[i] == seed[0] || nodes[i] == seed[1] || nodes[i] == seed[2])
 			continue;
 
 		// 计算扩充代价
-		cost1 = child[i]->expand_cost(seed[0]);
-		cost2 = child[i]->expand_cost(seed[1]);
-		cost3 = child[i]->expand_cost(seed[2]);
+		cost1 = nodes[i]->expand_cost(seed[0]);
+		cost2 = nodes[i]->expand_cost(seed[1]);
+		cost3 = nodes[i]->expand_cost(seed[2]);
 
 		if (r1.size() >= max_r1_size) // 第一个组合已满
 			cost1 = FLT_MAX;
@@ -513,28 +534,14 @@ void rectangle::split_2to3(rectangle & new_rect)
 		// 分成三部分
 		index = min_index_of_three(cost1, cost2, cost3);
 		if (index == 0)
-			r1.push_back(child[i]);
+			r1.push_back(nodes[i]);
 		else if (index == 1)
-			r2.push_back(child[i]);
+			r2.push_back(nodes[i]);
 		else
-			r3.push_back(child[i]);
+			r3.push_back(nodes[i]);
 	}
-	child.clear();
-	child.reserve(RECTANGLE_CAPABILITY + 1);
 
-	// FIXME - create 3 rectangles with 3 rectangle vector
-	rectangle *split_rect = new rectangle(RECTANGLE);
-	for (int i = 0; i < r1.size(); i++)
-		this->insert_2(*r1[i]);
-	for (int i = 0; i < r2.size(); i++)
-		sibling->insert_2(*r2[i]);
-	for (int i = 0; i < r3.size(); i++)
-		split_rect->insert_2(*r3[i]);
-
-	renovate();
-	split_rect->renovate();
-	split_rect->parent = parent;
-	parent->insert(*split_rect);
+	merge(&r1, &r2, &r3, sibling);
 }
 
 void rectangle::merge(std::vector<rectangle*>* r1, std::vector<rectangle*>* r2)
@@ -544,9 +551,9 @@ void rectangle::merge(std::vector<rectangle*>* r1, std::vector<rectangle*>* r2)
 
 	rectangle *split_rect = new rectangle(RECTANGLE);
 	for (int i = 0; i < r1->size(); i++)
-		this->insert_2(*(*r1)[i]);
+		this->insert(*(*r1)[i]);
 	for (int i = 0; i < r2->size(); i++)
-		split_rect->insert_2(*(*r2)[i]);
+		split_rect->insert(*(*r2)[i]);
 
 	renovate();
 	split_rect->renovate();
@@ -555,7 +562,7 @@ void rectangle::merge(std::vector<rectangle*>* r1, std::vector<rectangle*>* r2)
 	{
 		//这不是根节点
 		split_rect->parent = parent;
-		parent->insert_2(*split_rect);
+		parent->insert(*split_rect);
 	}
 	else
 	{
@@ -571,8 +578,43 @@ void rectangle::merge(std::vector<rectangle*>* r1, std::vector<rectangle*>* r2)
 	}
 }
 
-void rectangle::merge(std::vector<rectangle*>* r1, std::vector<rectangle*>* r2, std::vector<rectangle*>* r3)
+void rectangle::merge(std::vector<rectangle*>* r1, std::vector<rectangle*>* r2, 
+	std::vector<rectangle*>* r3, rectangle* sibling)
 {
+	child.clear();
+	child.reserve(RECTANGLE_CAPABILITY + 1);
+	sibling->child.clear();
+	sibling->child.reserve(RECTANGLE_CAPABILITY + 1);
+
+	rectangle *split_rect = new rectangle(RECTANGLE);
+
+	for (int i = 0; i < r1->size(); i++)
+		this->insert(*(*r1)[i]);
+	for (int i = 0; i < r2->size(); i++)
+		sibling->insert(*(*r2)[i]);
+	for (int i = 0; i < r3->size(); i++)
+		split_rect->insert(*(*r3)[i]);
+
+	renovate();
+	sibling->renovate();
+	split_rect->renovate();
+
+	if (parent != nullptr) {
+		//这不是根节点
+		split_rect->parent = parent;
+		parent->insert(*split_rect);
+	}
+	else {
+		//根节点分裂成了2个，不再是根节点
+		rectangle *new_root = new rectangle(RECTANGLE);
+		split_rect->parent = new_root;
+		parent = new_root;
+		new_root->insert(*split_rect);
+		new_root->insert(*this);
+		new_root->insert(*sibling);
+		root = new_root;
+		std::cout << "*****树发生了增高，根节点改变！*****\n" << std::endl;
+	}
 }
 
 void rectangle::naive_search(rectangle & target, std::vector<rectangle*>* result, int interval)

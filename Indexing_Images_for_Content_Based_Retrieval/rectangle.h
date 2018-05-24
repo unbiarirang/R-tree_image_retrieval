@@ -28,7 +28,6 @@ public:
 	rectangle* search_insert_position(rectangle &new_rect);
 	//插入一个新的节点为此节点的子节点
 	void insert(rectangle &new_rect);
-	void insert_2(rectangle &new_rect);
 	//简单的删除，不考虑额外情况，只用于insert内部调用
 	void delete_child(int index);
 
@@ -37,16 +36,16 @@ public:
 
 	//矩形分裂
 	void split(rectangle & new_rect);		// 把点分成左下角和右上角两个部分					
+	void split_quadratic(rectangle & new_rect);	// Guttman's quadratic split,分成两个部分
 	void split_2to3(rectangle & new_rect);	// 把满的兄弟两个节点分成三个节点，分的次数少，装载比例高
-	void split_quadratic(rectangle & new_rect);	// Guttman's quadratic split
 	// 选用一个大矩形覆盖两/三个矩形时浪费掉的空间最大的两/三个矩形。n为所找seed个数
 	std::vector<rectangle*> find_seed(rectangle* new_rect);
 	std::vector<rectangle*> find_seed(rectangle* sibling, rectangle* new_rect);
-	rectangle* get_sibling();
+	bool get_sibling(rectangle** sibling);
 
 	// 合并
 	void merge(std::vector<rectangle*>* r1, std::vector<rectangle*>* r2);
-	void merge(std::vector<rectangle*>* r1, std::vector<rectangle*>* r2, std::vector<rectangle*>* r3);
+	void merge(std::vector<rectangle*>* r1, std::vector<rectangle*>* r2, std::vector<rectangle*>* r3, rectangle* sibling);
 
 	// 搜索
 	// 简单搜索
