@@ -14,3 +14,8 @@ Indexing_Images_for_Content_Based_Retrieval/Debug/
 .gitignore_BASE_18792
 .gitignore_REMOTE_18792
 .gitignore_LOCAL_18792
+*.txt
+Indexing_Images_for_Content_Based_Retrieval/Rtree/Rtree.opensdf
+Indexing_Images_for_Content_Based_Retrieval/Rtree/Rtree.sdf
+Indexing_Images_for_Content_Based_Retrieval/Rtree/Rtree.sln
+Indexing_Images_for_Content_Based_Retrieval/Rtree/Rtree/Debug/Rtree.lastbuildstate
