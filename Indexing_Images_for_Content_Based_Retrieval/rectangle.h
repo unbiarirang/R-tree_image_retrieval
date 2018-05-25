@@ -41,7 +41,7 @@ public:
 	// 选用一个大矩形覆盖两/三个矩形时浪费掉的空间最大的两/三个矩形。n为所找seed个数
 	std::vector<rectangle*> find_seed(rectangle* new_rect);
 	std::vector<rectangle*> find_seed(rectangle* sibling, rectangle* new_rect);
-	bool get_sibling(rectangle** sibling);
+	int get_sibling(rectangle** sibling);
 
 	// 合并
 	void merge(std::vector<rectangle*>* r1, std::vector<rectangle*>* r2);
@@ -78,7 +78,10 @@ public:
 	//最大点的数据（相当于二维的矩形右上角）
 	std::vector<int>* max_point;
 	//矩形体积（各维度数据之乘积）
-	int volume;
+	unsigned long long int volume;
+	// 跟target矩形
+	float cost;
 };
 
 void create_tree_from_file(std::string file_name);
+void create_tree_from_file2(std::string file_name);

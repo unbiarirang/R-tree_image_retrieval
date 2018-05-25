@@ -92,6 +92,9 @@ void rectangle::renovate()
 
 float rectangle::expand_cost(rectangle *new_rect)
 {
+	if (new_rect == nullptr) {
+		return 0;
+	}
 	float min;
 	float max;
 	float cost = 1;
@@ -183,8 +186,8 @@ void rectangle::insert(rectangle &new_rect)
 		else
 		{
 			//split(new_rect);
-			//split_quadratic(new_rect);
-			split_2to3(new_rect);
+			split_quadratic(new_rect);
+			//split_2to3(new_rect);
 		}
 	}
 	else
@@ -278,9 +281,21 @@ std::vector<rectangle*> rectangle::find_seed(rectangle* sibling, rectangle* new_
 	return seed;
 }
 
-bool rectangle::get_sibling(rectangle** sibling)
+int rectangle::get_sibling(rectangle** sibling)
 {
 	float temp = 0, min_cost = INT_MAX;
+
+	// 没有兄弟，新生成兄弟，把自己的第二个孩子送给兄弟
+	if (parent->child.size() == 1) {
+		rectangle* new_rect = new rectangle(RECTANGLE);
+		new_rect->insert(*(child)[1]);
+		child[1]->parent = new_rect;
+		this->delete_child(1);
+		this->renovate();
+		new_rect->parent = parent;
+		parent->insert(*new_rect);
+		return 2;
+	}
 
 	// 找兄弟，兄弟指的是父亲的孩子们中扩充代价最小的矩形
 	for (int i = 0; i < parent->child.size(); i++) {
@@ -295,10 +310,10 @@ bool rectangle::get_sibling(rectangle** sibling)
 
 	// 兄弟也已满，需要分裂
 	if ((*sibling)->child.size() == RECTANGLE_CAPABILITY)
-		return true;
+		return 1;
 
 	// 兄弟没满，不需要分裂
-	return false;
+	return 0;
 }
 
 void rectangle::split(rectangle & new_rect)
@@ -464,11 +479,16 @@ void rectangle::split_2to3(rectangle & new_rect)
 	}
 
 	rectangle* sibling = nullptr;
-	bool need_split = get_sibling(&sibling);
+	int need_split = get_sibling(&sibling);
 	// 自己的兄弟没满，把新的矩形插入给兄弟
-	if (need_split == false) {
+	if (need_split == 0) {
 		new_rect.parent = sibling;
 		sibling->insert(new_rect);
+		return;
+	}
+	// 新生成了兄弟，重新做插入
+	if (need_split == 2) {
+		this->insert(new_rect);
 		return;
 	}
 
@@ -511,8 +531,6 @@ void rectangle::split_2to3(rectangle & new_rect)
 		else
 			r3.push_back(&new_rect);
 	}
-	else // 新加的点是seed
-		r3.push_back(&new_rect);
 
 	for (int i = 0; i < nodes.size(); i++) {
 		// 自己本身是seed
@@ -671,6 +689,10 @@ float rectangle::get_max_distance(rectangle & node) {
 	return sqrt(dist);
 }
 
+bool sort_result(rectangle* r1, rectangle* r2) {
+	return (r1->cost < r2->cost);
+}
+
 void rectangle::knn_search(rectangle & target, std::vector<rectangle*>* result, int need_count) {
 	float max_dist = 0;
 	std::vector<rectangle*>* overlap_node = new std::vector<rectangle*>;
@@ -686,6 +708,12 @@ void rectangle::knn_search(rectangle & target, std::vector<rectangle*>* result, 
 			(*overlap_node)[i] = (*overlap_node)[i]->parent;
 		}
 	}
+
+	for (int i = 0; i < result->size(); i++) {
+		(*result)[i]->cost = (*result)[i]->expand_cost(&target);
+	}
+	std::sort(result->begin(), result->end(), sort_result);
+	result->erase(result->begin() + need_count, result->end());
 }
 
 // knn搜索时target是一个点
@@ -779,7 +807,6 @@ bool rectangle::overlap(rectangle & target)
 	return true;
 }
 
-
 void create_tree_from_file(std::string file_name)
 {
 	std::ifstream fin(file_name);
@@ -808,6 +835,52 @@ void create_tree_from_file(std::string file_name)
 		//点数据插入完毕
 		new_rect = new rectangle(POINT, point_data);
 		new_rect->point_data->ID = ID;
+		ID++;
+		image_data.push_back(new_rect);
+		(root->search_insert_position(*new_rect))->insert(*new_rect);
+	}
+}
+
+void create_tree_from_file2(std::string file_name)
+{
+	std::ifstream fin(file_name);
+	if (!fin.good()) {
+		std::cerr << "error: open file failed!\n";
+		abort();
+	}
+
+	std::string line;
+	std::vector<int>* point_data;
+	int ID = 1;
+	rectangle * new_rect;
+	char name[100] = { 0 };
+	char temp = 0;
+	int count = 0;
+	while (std::getline(fin, line))
+	{
+		point_data = new std::vector<int>;
+		point_data->reserve(COLOR_COUNT);
+		std::stringstream analyse_line(line);
+		memset(name, 0, 100);
+		count = 0;
+		int num;
+		analyse_line >> temp;
+		while (temp != ':') {
+			name[count] = temp;
+			count++;
+			analyse_line >> temp;
+		}
+		std::string image_name(name);
+
+		for (int i = 0; i < COLOR_COUNT; i++)
+		{
+			analyse_line >> num;
+			point_data->push_back(num);
+		}
+		//点数据插入完毕
+		new_rect = new rectangle(POINT, point_data);
+		new_rect->point_data->ID = ID;
+		new_rect->point_data->image_name = image_name;
 		ID++;
 		image_data.push_back(new_rect);
 		(root->search_insert_position(*new_rect))->insert(*new_rect);
