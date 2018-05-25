@@ -11,7 +11,8 @@ int main()
 {
 	root = new rectangle(RECTANGLE);
 	//create_tree_from_file("color_feature.txt");
-	create_tree_from_file2("RGB8D.txt");
+	create_tree_from_file2("RGB16D.txt");
+	//create_tree_from_file3("RGB_feature_16D.txt");
 	std::vector<rectangle*>* result = new std::vector<rectangle*>;
 
 	rectangle* target = image_data[0];

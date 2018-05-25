@@ -167,7 +167,7 @@ rectangle * rectangle::search_insert_position(rectangle &new_rect)
 	else
 	{
 		//这是一个非空非底层矩形，将在其子节点中寻找插入的节点
-		double min_cost = FLT_MAX;
+		double min_cost = DBL_MAX;
 		double temp;
 		for (int i = 0; i < child.size(); i++)
 		{
@@ -563,11 +563,11 @@ void rectangle::split_2to3(rectangle & new_rect)
 			cost3 = nodes[i]->expand_cost(seed[2]);
 
 			if (r1.size() >= max_r1_size) // 第一个组合已满
-				cost1 = FLT_MAX;
+				cost1 = DBL_MAX;
 			if (r2.size() >= max_r2_size) // 第二个组合已满
-				cost2 = FLT_MAX;
+				cost2 = DBL_MAX;
 			if (r3.size() >= max_r3_size) // 第三个组合已满
-				cost3 = FLT_MAX;
+				cost3 = DBL_MAX;
 
 			// 分成三部分
 			index = min_index_of_three(cost1, cost2, cost3);
@@ -766,7 +766,7 @@ void rectangle::knn_search(rectangle & target, std::vector<rectangle*>* result, 
 void rectangle::_knn_search(rectangle & target, std::vector<rectangle*>* result,
 	int need_count, double &max_dist, std::vector<rectangle*>* overlap_node)
 {
-	double min_worst = FLT_MAX, temp_worst = 0;
+	double min_worst = DBL_MAX, temp_worst = 0;
 	double *best_dist = new double[child.size()];
 	// 用于出现叶子结点时
 	bool leaf_flag = false;
