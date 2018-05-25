@@ -17,6 +17,8 @@ rectangle::rectangle(rectangle_type t, std::vector<int> * min_point_data, std::v
 		{
 			min_point = min_point_data;
 			max_point = min_point_data;
+			point_data->data = min_point_data;
+			renovate();
 		}
 		else
 		{
@@ -56,9 +58,10 @@ rectangle::~rectangle()
 
 void rectangle::renovate()
 {
-	//根据这个矩形的孩子，刷新这个矩形的范围
+	double count = 1;
 	if (type == RECTANGLE && child.size() != 0)
 	{
+		//根据这个矩形的孩子，刷新这个矩形的范围
 		for (int i = 0; i < color_count; i++)
 		{
 			(*min_point)[i] = 2147483647;
@@ -79,25 +82,38 @@ void rectangle::renovate()
 			}
 		}
 		//刷新这个矩形的体积
-		unsigned long long int count = 1;
+		count = 1;
 		for (int i = 0; i < color_count; i++)
 		{
-			if (count>10) count /= 10;	//避免越界的无奈之举！！！
 			count *= (*max_point)[i] - (*min_point)[i];
 		}
 		volume = count;
-
+		count = 1;
+		for (int i = 0; i < color_count; i++)
+		{
+			count += (((*max_point)[i] + (*min_point)[i]) / 2)*(((*max_point)[i] + (*min_point)[i]) / 2);
+		}
+		midpoint_distance = sqrt(count);
+	}
+	else
+	{
+		count = 1;
+		for (int i = 0; i < color_count; i++)
+		{
+			count += (((*max_point)[i] + (*min_point)[i]) / 2)*(((*max_point)[i] + (*min_point)[i]) / 2);
+		}
+		midpoint_distance = sqrt(count);
 	}
 }
 
-float rectangle::expand_cost(rectangle *new_rect)
+double rectangle::expand_cost(rectangle *new_rect)
 {
 	if (new_rect == nullptr) {
 		return 0;
 	}
-	float min;
-	float max;
-	float cost = 1;
+	double min;
+	double max;
+	double cost = 1;
 	for (int i = 0; i < color_count; i++)
 	{
 		if ((*min_point)[i] > (*new_rect->min_point)[i])
@@ -113,11 +129,11 @@ float rectangle::expand_cost(rectangle *new_rect)
 	return cost - volume - new_rect->volume;
 }
 
-float rectangle::expand_cost(rectangle *rect1, rectangle *rect2)
+double rectangle::expand_cost(rectangle *rect1, rectangle *rect2)
 {
-	float min;
-	float max;
-	float cost = 1;
+	double min;
+	double max;
+	double cost = 1;
 	for (int i = 0; i < color_count; i++) {
 		// 找三个矩形中最小的min_point值
 		if ((*min_point)[i] < (*rect1->min_point)[i])
@@ -151,8 +167,8 @@ rectangle * rectangle::search_insert_position(rectangle &new_rect)
 	else
 	{
 		//这是一个非空非底层矩形，将在其子节点中寻找插入的节点
-		float min_cost = FLT_MAX;
-		float temp;
+		double min_cost = FLT_MAX;
+		double temp;
 		for (int i = 0; i < child.size(); i++)
 		{
 			temp = child[i]->expand_cost(&new_rect);
@@ -212,8 +228,8 @@ void rectangle::init_point_data(std::string _image_path, std::string _image_name
 // 选用一个大矩形覆盖两个矩形时浪费掉的空间最大的两个矩形
 std::vector<rectangle*> rectangle::find_seed(rectangle* new_rect)
 {
-	float max_waste_volume = 0;
-	float v = 0;
+	double max_waste_volume = -1;
+	double v = 0;
 
 	std::vector<rectangle*> seed;
 	seed.resize(2);
@@ -236,14 +252,36 @@ std::vector<rectangle*> rectangle::find_seed(rectangle* new_rect)
 			seed[1] = new_rect;
 		}
 	}
+	if (seed[0] == nullptr)
+	{
+		std::cout << "???";
+		for (int i = 0; i < child.size(); i++) {
+			for (int j = i + 1; j < child.size(); j++) {
+				v = child[i]->expand_cost(child[j]);
+				if (v > max_waste_volume) {
+					max_waste_volume = v;
+					seed[0] = child[i];
+					seed[1] = child[j];
+				}
+			}
 
+			// 跟new_rect也进行比较
+			v = child[i]->expand_cost(new_rect);
+			if (v > max_waste_volume) {
+				max_waste_volume = v;
+				seed[0] = child[i];
+				seed[1] = new_rect;
+			}
+		}
+
+	}
 	return seed;
 }
 
 // 选出三个种子矩形
 std::vector<rectangle*> rectangle::find_seed(rectangle* sibling, rectangle* new_rect) {
-	float max_waste_volume = 0;
-	float v = 0;
+	double max_waste_volume = -1;
+	double v = 0;
 
 	std::vector<rectangle*> seed;
 	seed.resize(3);
@@ -278,57 +316,49 @@ std::vector<rectangle*> rectangle::find_seed(rectangle* sibling, rectangle* new_
 			}
 		}
 	}
+	if (seed[0] == nullptr)
+	{
+		std::cout << "???";
+	}
 	return seed;
 }
 
-int rectangle::get_sibling(rectangle** sibling)
+rectangle * rectangle::find_sibling(int & sibling_count,bool & use)
 {
-	float temp = 0, min_cost = INT_MAX;
-
-	// 没有兄弟，新生成兄弟，把自己的第二个孩子送给兄弟
-	if (parent->child.size() == 1) {
-		rectangle* new_rect = new rectangle(RECTANGLE);
-		new_rect->insert(*(child)[1]);
-		child[1]->parent = new_rect;
-		this->delete_child(1);
-		this->renovate();
-		new_rect->parent = parent;
-		parent->insert(*new_rect);
-		return 2;
+	rectangle * result = nullptr;
+	if (parent != nullptr)
+		sibling_count = parent->child.size();
+	else
+		sibling_count = -1;
+	if (sibling_count == 2)
+	{
+		if (parent->child[0]->child.size() == RECTANGLE_CAPABILITY && parent->child[1]->child.size() == RECTANGLE_CAPABILITY)
+			use = true;
+		else
+			use = false;
 	}
-
-	// 找兄弟，兄弟指的是父亲的孩子们中扩充代价最小的矩形
-	for (int i = 0; i < parent->child.size(); i++) {
-		if (parent->child[i] == this) continue;
-
-		temp = expand_cost(parent->child[i]);
-		if (temp < min_cost) {
-			min_cost = temp;
-			*sibling = parent->child[i];
+	for (int i = 0; i < parent->child.size(); i++)
+	{
+		if (parent->child[i]->child.size() < RECTANGLE_CAPABILITY);
+		{
+			return parent->child[i];
 		}
 	}
-
-	// 兄弟也已满，需要分裂
-	if ((*sibling)->child.size() == RECTANGLE_CAPABILITY)
-		return 1;
-
-	// 兄弟没满，不需要分裂
-	return 0;
 }
 
 void rectangle::split(rectangle & new_rect)
 {
 	//本矩形已满，需要分裂
 	int index[RECTANGLE_CAPABILITY + 1];
-	unsigned long long int num[RECTANGLE_CAPABILITY + 1];
+	double num[RECTANGLE_CAPABILITY + 1];
 	for (int i = 0; i < RECTANGLE_CAPABILITY; i++)
 	{
-		num[i] = child[i]->volume;
+		num[i] = child[i]->midpoint_distance;
 		index[i] = i;
 		//然后排序，前（RECTANGLE_CAPABILITY + 1）/2放一堆，剩下的new一堆，把那一堆调用parent->insert(new）；
 		//记得考虑根节点的特殊情况
 	}
-	num[RECTANGLE_CAPABILITY] = new_rect.volume;
+	num[RECTANGLE_CAPABILITY] = new_rect.midpoint_distance;
 	index[RECTANGLE_CAPABILITY] = RECTANGLE_CAPABILITY;
 	//对num进行排序,由index记忆结果
 	unsigned int temp1 = 0;
@@ -421,12 +451,16 @@ void rectangle::split(rectangle & new_rect)
 void rectangle::split_quadratic(rectangle & new_rect)
 {
 	// 令new_rect的index为child.size()。seed[1]_index可能等于child.size
+	if (child[0]->type != new_rect.type)
+	{
+		std::cout << "???";
+	}
 	std::vector<rectangle*> seed = find_seed(&new_rect);
 
 	// 矩形的节点和新加的节点合并生成2个新的矩形，其子节点分别暂存在r1，r2
 	std::vector<rectangle*> r1, r2;
 	int total_node_num = RECTANGLE_CAPABILITY + 1;
-	float cost1, cost2;
+	double cost1, cost2;
 	int max_r1_size = total_node_num / 2, max_r2_size = total_node_num - max_r1_size;
 
 	// 把一个矩形的节点和新加的节点分配到两个组
@@ -472,94 +506,89 @@ void rectangle::split_quadratic(rectangle & new_rect)
 
 void rectangle::split_2to3(rectangle & new_rect)
 {
-	// 此矩形是根结点，没有兄弟，直接1分为2
-	if (parent == nullptr) {
+	int sibling_count = 0;
+	bool use;
+	//sibling_count是父节点的孩子数目（包括他自己），use是本节点是否满足2分3的条件
+	rectangle * target = find_sibling(sibling_count, use);
+	if (use)
+	{
+		// 自己和自己的兄弟都已满，开始分裂
+		std::vector<rectangle*> seed = parent->child[0]->find_seed(parent->child[1], &new_rect);
+
+		// 2个矩形的节点和新加的节点合并生成3个新的矩形，其子节点分别暂存在r1，r2，r3
+		std::vector<rectangle*> r1, r2, r3;
+		int total_node_num = 2 * RECTANGLE_CAPABILITY + 1;
+		double cost1, cost2, cost3;
+		int max_r1_size = total_node_num / 3,
+			max_r2_size = (total_node_num - max_r1_size) / 2,
+			max_r3_size = total_node_num - max_r1_size - max_r2_size;
+		int index; // 最小cost的编号
+
+		std::vector<rectangle*> nodes;
+		for (int i = 0; i < child.size(); i++) {
+			nodes.push_back(parent->child[0]->child[i]);
+			nodes.push_back(parent->child[1]->child[i]);
+		}
+
+		// 把2个矩形的节点和新加的节点分配到3个组
+		// 将种子节点分配
+		r1.push_back(seed[0]);
+		r2.push_back(seed[1]);
+		r3.push_back(seed[2]);
+
+		// 将新加的点分配
+		if (&new_rect != seed[2]) { // 新加的点不是seed
+			cost1 = new_rect.expand_cost(seed[0]);
+			cost2 = new_rect.expand_cost(seed[1]);
+			cost3 = new_rect.expand_cost(seed[2]);
+
+			// 分到前，中，后三部分之一
+			index = min_index_of_three(cost1, cost2, cost3);
+			if (index == 0)
+				r1.push_back(&new_rect);
+			else if (index == 1)
+				r2.push_back(&new_rect);
+			else
+				r3.push_back(&new_rect);
+		}
+
+		for (int i = 0; i < nodes.size(); i++) {
+			// 自己本身是seed
+			if (nodes[i] == seed[0] || nodes[i] == seed[1] || nodes[i] == seed[2])
+				continue;
+
+			// 计算扩充代价
+			cost1 = nodes[i]->expand_cost(seed[0]);
+			cost2 = nodes[i]->expand_cost(seed[1]);
+			cost3 = nodes[i]->expand_cost(seed[2]);
+
+			if (r1.size() >= max_r1_size) // 第一个组合已满
+				cost1 = FLT_MAX;
+			if (r2.size() >= max_r2_size) // 第二个组合已满
+				cost2 = FLT_MAX;
+			if (r3.size() >= max_r3_size) // 第三个组合已满
+				cost3 = FLT_MAX;
+
+			// 分成三部分
+			index = min_index_of_three(cost1, cost2, cost3);
+			if (index == 0)
+				r1.push_back(nodes[i]);
+			else if (index == 1)
+				r2.push_back(nodes[i]);
+			else
+				r3.push_back(nodes[i]);
+		}
+
+		parent->child[0]->merge(&r1, &r2, &r3, parent->child[1]);
+	}
+	else if(target!=nullptr)
+	{
+		target->split_quadratic(new_rect);
+	}
+	else
+	{
 		split_quadratic(new_rect);
-		return;
 	}
-
-	rectangle* sibling = nullptr;
-	int need_split = get_sibling(&sibling);
-	// 自己的兄弟没满，把新的矩形插入给兄弟
-	if (need_split == 0) {
-		new_rect.parent = sibling;
-		sibling->insert(new_rect);
-		return;
-	}
-	// 新生成了兄弟，重新做插入
-	if (need_split == 2) {
-		this->insert(new_rect);
-		return;
-	}
-
-	// 自己和自己的兄弟都已满，开始分裂
-	std::vector<rectangle*> seed = find_seed(sibling, &new_rect);
-
-	// 2个矩形的节点和新加的节点合并生成3个新的矩形，其子节点分别暂存在r1，r2，r3
-	std::vector<rectangle*> r1, r2, r3;
-	int total_node_num = 2 * RECTANGLE_CAPABILITY + 1;
-	float cost1, cost2, cost3;
-	int max_r1_size = total_node_num / 3,
-		max_r2_size = (total_node_num - max_r1_size) / 2,
-		max_r3_size = total_node_num - max_r1_size - max_r2_size;
-	int index; // 最小cost的编号
-
-	std::vector<rectangle*> nodes;
-	for (int i = 0; i < child.size(); i++) {
-		nodes.push_back(child[i]);
-		nodes.push_back(sibling->child[i]);
-	}
-
-	// 把2个矩形的节点和新加的节点分配到3个组
-	// 将种子节点分配
-	r1.push_back(seed[0]);
-	r2.push_back(seed[1]);
-	r3.push_back(seed[2]);
-
-	// 将新加的点分配
-	if (&new_rect != seed[2]) { // 新加的点不是seed
-		cost1 = new_rect.expand_cost(seed[0]);
-		cost2 = new_rect.expand_cost(seed[1]);
-		cost3 = new_rect.expand_cost(seed[2]);
-
-		// 分到前，中，后三部分之一
-		index = min_index_of_three(cost1, cost2, cost3);
-		if (index == 0)
-			r1.push_back(&new_rect);
-		else if (index == 1)
-			r2.push_back(&new_rect);
-		else
-			r3.push_back(&new_rect);
-	}
-
-	for (int i = 0; i < nodes.size(); i++) {
-		// 自己本身是seed
-		if (nodes[i] == seed[0] || nodes[i] == seed[1] || nodes[i] == seed[2])
-			continue;
-
-		// 计算扩充代价
-		cost1 = nodes[i]->expand_cost(seed[0]);
-		cost2 = nodes[i]->expand_cost(seed[1]);
-		cost3 = nodes[i]->expand_cost(seed[2]);
-
-		if (r1.size() >= max_r1_size) // 第一个组合已满
-			cost1 = FLT_MAX;
-		if (r2.size() >= max_r2_size) // 第二个组合已满
-			cost2 = FLT_MAX;
-		if (r3.size() >= max_r3_size) // 第三个组合已满
-			cost3 = FLT_MAX;
-
-		// 分成三部分
-		index = min_index_of_three(cost1, cost2, cost3);
-		if (index == 0)
-			r1.push_back(nodes[i]);
-		else if (index == 1)
-			r2.push_back(nodes[i]);
-		else
-			r3.push_back(nodes[i]);
-	}
-
-	merge(&r1, &r2, &r3, sibling);
 }
 
 void rectangle::merge(std::vector<rectangle*>* r1, std::vector<rectangle*>* r2)
@@ -569,9 +598,26 @@ void rectangle::merge(std::vector<rectangle*>* r1, std::vector<rectangle*>* r2)
 
 	rectangle *split_rect = new rectangle(RECTANGLE);
 	for (int i = 0; i < r1->size(); i++)
-		this->insert(*(*r1)[i]);
+	{
+		if (&*(*r1)[i] != nullptr)
+		{
+			this->insert(*(*r1)[i]);
+		}
+		else
+		{
+			std::cout << "???";
+		}
+	}
+
 	for (int i = 0; i < r2->size(); i++)
-		split_rect->insert(*(*r2)[i]);
+		if (&*(*r2)[i] != nullptr)
+		{
+			split_rect->insert(*(*r2)[i]);
+		}
+		else
+		{
+			std::cout << "???";
+		}
 
 	renovate();
 	split_rect->renovate();
@@ -668,8 +714,8 @@ void rectangle::naive_search(rectangle & target, std::vector<rectangle*>* result
 	}
 }
 
-float rectangle::get_min_distance(rectangle & node) {
-	float dist = 0;
+double rectangle::get_min_distance(rectangle & node) {
+	double dist = 0;
 	for (int i = 0; i < COLOR_COUNT; i++) {
 		if ((*node.min_point)[i] >= (*min_point)[i] && (*node.min_point)[i] <= (*max_point)[i])
 			dist += 0;
@@ -681,8 +727,8 @@ float rectangle::get_min_distance(rectangle & node) {
 }
 
 // 最远对角线距离。不是真正的最远距离，比理想最远距离大
-float rectangle::get_max_distance(rectangle & node) {
-	float dist = 0;
+double rectangle::get_max_distance(rectangle & node) {
+	double dist = 0;
 	for (int i = 0; i < COLOR_COUNT; i++)
 		dist += std::min(abs((*node.min_point)[i] - (*min_point)[i]), abs((*node.min_point)[i] - (*max_point)[i]));
 
@@ -694,7 +740,7 @@ bool sort_result(rectangle* r1, rectangle* r2) {
 }
 
 void rectangle::knn_search(rectangle & target, std::vector<rectangle*>* result, int need_count) {
-	float max_dist = 0;
+	double max_dist = 0;
 	std::vector<rectangle*>* overlap_node = new std::vector<rectangle*>;
 	_knn_search(target, result, need_count, max_dist, overlap_node);
 
@@ -718,10 +764,10 @@ void rectangle::knn_search(rectangle & target, std::vector<rectangle*>* result, 
 
 // knn搜索时target是一个点
 void rectangle::_knn_search(rectangle & target, std::vector<rectangle*>* result,
-	int need_count, float &max_dist, std::vector<rectangle*>* overlap_node)
+	int need_count, double &max_dist, std::vector<rectangle*>* overlap_node)
 {
-	float min_worst = FLT_MAX, temp_worst = 0;
-	float *best_dist = new float[child.size()];
+	double min_worst = FLT_MAX, temp_worst = 0;
+	double *best_dist = new double[child.size()];
 	// 用于出现叶子结点时
 	bool leaf_flag = false;
 
@@ -770,7 +816,7 @@ void rectangle::get_leaf_nodes(std::vector<rectangle*>* res) {
 		child[i]->get_leaf_nodes(res);
 }
 
-void rectangle::expand(rectangle & target, std::vector<rectangle*>* result, int need_count, float &max_dist)
+void rectangle::expand(rectangle & target, std::vector<rectangle*>* result, int need_count, double &max_dist)
 {
 	rectangle* parent = this->parent;
 	// 为了找出不跟target重合，但是比在结果里最远的节点更近的所有点
@@ -884,5 +930,68 @@ void create_tree_from_file2(std::string file_name)
 		ID++;
 		image_data.push_back(new_rect);
 		(root->search_insert_position(*new_rect))->insert(*new_rect);
+	}
+}
+
+void create_tree_from_file3(std::string file_name)
+{
+	std::ifstream fin(file_name);
+	if (!fin.good()) {
+		std::cerr << "error: open file failed!\n";
+		abort();
+	}
+
+	std::string line;
+	std::vector<int>* point_data;
+	int ID = 1;
+	int ct = 0;
+	rectangle * new_rect;
+	char name[100] = { 0 };
+	char temp = 0;
+	int count = 0;
+	while (std::getline(fin, line))
+	{
+		//if (ct>3000)
+		//	break;
+		std::stringstream analyse_line(line);
+		//memset(name, 0, 100);
+		count = 0;
+		int num;
+		//analyse_line >> temp;
+		/*while (temp != ':') {
+		name[count] = temp;
+		count++;
+		analyse_line >> temp;
+		}*/
+		if (ct % 2 == 0)//
+		{
+			analyse_line >> name;
+			point_data = new std::vector<int>;
+			point_data->reserve(COLOR_COUNT);
+		}
+		if (ct % 2 == 1)
+		{
+			std::string image_name(name);
+			//std::cout<<name<<std::endl;
+			//
+			for (int i = 0; i < COLOR_COUNT; i++)
+			{
+				analyse_line >> num;
+				point_data->push_back(num);
+				//std::cout<<num<<" ";
+			}
+			//std::cout<<std::endl;
+			//点数据插入完毕
+			new_rect = new rectangle(POINT, point_data);
+			new_rect->point_data->ID = ID;
+			new_rect->point_data->image_name = image_name;
+			new_rect->point_data->data = point_data;
+			ID++;
+			//std::cout<<ct<<std::endl;
+			image_data.push_back(new_rect);
+			(root->search_insert_position(*new_rect))->insert(*new_rect);
+			memset(name, 0, 100);
+		}
+		ct++;
 	}
 }

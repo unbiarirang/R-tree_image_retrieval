@@ -22,8 +22,8 @@ public:
 	//刷新此矩形体积、坐标
 	void renovate();
 	//计算这个矩形如果要容纳另一个矩形的话，需要的扩张代价（此步骤依赖方形模型）
-	float expand_cost(rectangle *new_rect);
-	float expand_cost(rectangle *rect1, rectangle *rect2); // 覆盖三个矩形时的代价
+	double expand_cost(rectangle *new_rect);
+	double expand_cost(rectangle *rect1, rectangle *rect2); // 覆盖三个矩形时的代价
 	//查找新点应当插入的最底层中间节点
 	rectangle* search_insert_position(rectangle &new_rect);
 	//插入一个新的节点为此节点的子节点
@@ -41,7 +41,8 @@ public:
 	// 选用一个大矩形覆盖两/三个矩形时浪费掉的空间最大的两/三个矩形。n为所找seed个数
 	std::vector<rectangle*> find_seed(rectangle* new_rect);
 	std::vector<rectangle*> find_seed(rectangle* sibling, rectangle* new_rect);
-	int get_sibling(rectangle** sibling);
+	//寻找该节点的兄弟节点（用来判定是否使用2-3split方法）
+	rectangle * find_sibling(int & sibling_count, bool & use);
 
 	// 合并
 	void merge(std::vector<rectangle*>* r1, std::vector<rectangle*>* r2);
@@ -53,13 +54,13 @@ public:
 	// knn搜索，搜索最近need_count个节点
 	// max_dist用于expand函数递归时传值，对knn_search本身没用
 	void knn_search(rectangle & target, std::vector<rectangle*>* result, int need_count);
-	void rectangle::_knn_search(rectangle & target, std::vector<rectangle*>* result,
-		int need_count, float &max_dist, std::vector<rectangle*>* overlap_node);
-	void expand(rectangle & target, std::vector<rectangle*>* result, int need_count, float &max_dist);
+	void _knn_search(rectangle & target, std::vector<rectangle*>* result,
+		int need_count, double &max_dist, std::vector<rectangle*>* overlap_node);
+	void expand(rectangle & target, std::vector<rectangle*>* result, int need_count, double &max_dist);
 	void get_leaf_nodes(std::vector<rectangle*>* res);
 	// 计算Euclidean distance
-	float get_min_distance(rectangle & node);
-	float get_max_distance(rectangle & node);
+	double get_min_distance(rectangle & node);
+	double get_max_distance(rectangle & node);
 	//判断两个矩形是否重合
 	bool overlap(rectangle & target);
 	
@@ -78,10 +79,13 @@ public:
 	//最大点的数据（相当于二维的矩形右上角）
 	std::vector<int>* max_point;
 	//矩形体积（各维度数据之乘积）
-	unsigned long long int volume;
+	double volume;
+	//矩形中心到坐标原点的（欧氏）距离
+	double midpoint_distance;
 	// 跟target矩形
-	float cost;
+	double cost;
 };
 
 void create_tree_from_file(std::string file_name);
 void create_tree_from_file2(std::string file_name);
+void create_tree_from_file3(std::string file_name);

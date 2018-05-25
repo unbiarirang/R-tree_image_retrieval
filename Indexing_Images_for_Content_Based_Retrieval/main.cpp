@@ -10,13 +10,13 @@ std::vector<rectangle*> image_data;
 int main()
 {
 	root = new rectangle(RECTANGLE);
-	create_tree_from_file("color_feature.txt");
-	//create_tree_from_file2("RGB4D.txt");
+	//create_tree_from_file("color_feature.txt");
+	create_tree_from_file2("RGB8D.txt");
 	std::vector<rectangle*>* result = new std::vector<rectangle*>;
 
 	rectangle* target = image_data[0];
 	root->knn_search(*target, result, 10);
-	//root->naive_search(*target, result, 10000);
+	//root->naive_search(*target, result, 5000);
 
 	//输出结果
 	int correct_count = 0;
@@ -35,7 +35,7 @@ int main()
 	}
 
 	std::cout << "target image label: " << target_label << std::endl;
-	std::cout << "准确率为" << float(correct_count) / float(result->size()) * 100 << "%\n";
+	std::cout << "准确率为" << double(correct_count) / double(result->size()) * 100 << "%\n";
 	
 	//std::vector<rectangle> v;
 	//for (int i = 0; i < 1000; i++)
