@@ -11,13 +11,15 @@ int main()
 {
 	root = new rectangle(RECTANGLE);
 	//create_tree_from_file("color_feature.txt");
-	create_tree_from_file2("RGB16D.txt");
-	//create_tree_from_file3("RGB_feature_16D.txt");
+	//create_tree_from_file2("RGB4D.txt");
+	create_tree_from_file3("RGB4D.txt");
 	std::vector<rectangle*>* result = new std::vector<rectangle*>;
 
 	rectangle* target = image_data[0];
+	root->naive_search(*image_data[0], result, 1000);
+	std::cout << target->visit_count << std::endl;
 	root->knn_search(*target, result, 10);
-	//root->naive_search(*target, result, 5000);
+	std::cout << target->visit_count << std::endl;
 
 	//Êä³ö½á¹û
 	int correct_count = 0;

@@ -27,6 +27,7 @@ rectangle::rectangle(rectangle_type t, std::vector<int> * min_point_data, std::v
 			max_point = min_point;
 		}
 		volume = 0;
+		visit_count = 0;
 	}
 	else if (t == RECTANGLE)
 	{
@@ -48,6 +49,7 @@ rectangle::rectangle(rectangle_type t, std::vector<int> * min_point_data, std::v
 			max_point->resize(color_count);
 		}
 		volume = 0;
+		visit_count = 0;
 	}
 }
 
@@ -683,6 +685,8 @@ void rectangle::merge(std::vector<rectangle*>* r1, std::vector<rectangle*>* r2,
 
 void rectangle::naive_search(rectangle & target, std::vector<rectangle*>* result, int interval)
 {
+	// 访问节点次数
+	target.visit_count++;
 	if (target.type == RECTANGLE)
 	{
 		for (int i = 0; i < child.size(); i++)
@@ -711,6 +715,7 @@ void rectangle::naive_search(rectangle & target, std::vector<rectangle*>* result
 				(*rect.min_point)[i] = 0;
 		}
 		naive_search(rect, result);
+		target.visit_count += rect.visit_count;
 	}
 }
 
@@ -770,6 +775,9 @@ void rectangle::_knn_search(rectangle & target, std::vector<rectangle*>* result,
 	double *best_dist = new double[child.size()];
 	// 用于出现叶子结点时
 	bool leaf_flag = false;
+
+	// 访问节点次数
+	target.visit_count++;
 
 	for (int i = 0; i < child.size(); i++) {
 		if (child[i]->type == RECTANGLE) { // 孩子节点是矩形
@@ -861,14 +869,19 @@ void create_tree_from_file(std::string file_name)
 		abort();
 	}
 
+	std::ifstream fin2("image_list.txt");
+	if (!fin2.good()) {
+		std::cerr << "error: open file failed!\n";
+		abort();
+	}
+
 	std::string line;
-	std::vector<int>* point_data;
 	int ID = 1;
 	rectangle * new_rect;
 	while (std::getline(fin, line))
 	{
-		point_data = new std::vector<int>;
-		point_data->reserve(COLOR_COUNT);
+		std::vector<int>* data = new std::vector<int>;
+		data->reserve(COLOR_COUNT);
 		std::stringstream analyse_line(line);
 		char c;
 		int num;
@@ -876,11 +889,15 @@ void create_tree_from_file(std::string file_name)
 		for (int i = 0; i < COLOR_COUNT; i++)
 		{
 			analyse_line >> num;
-			point_data->push_back(num);
+			data->push_back(num);
 		}
 		//点数据插入完毕
-		new_rect = new rectangle(POINT, point_data);
+		new_rect = new rectangle(POINT, data);
 		new_rect->point_data->ID = ID;
+		std::string name;
+		std::getline(fin2, name);
+		new_rect->point_data->image_name = name;
+		new_rect->point_data->data = data;
 		ID++;
 		image_data.push_back(new_rect);
 		(root->search_insert_position(*new_rect))->insert(*new_rect);
@@ -944,54 +961,35 @@ void create_tree_from_file3(std::string file_name)
 	std::string line;
 	std::vector<int>* point_data;
 	int ID = 1;
-	int ct = 0;
 	rectangle * new_rect;
 	char name[100] = { 0 };
-	char temp = 0;
-	int count = 0;
 	while (std::getline(fin, line))
 	{
-		//if (ct>3000)
-		//	break;
 		std::stringstream analyse_line(line);
-		//memset(name, 0, 100);
-		count = 0;
 		int num;
-		//analyse_line >> temp;
-		/*while (temp != ':') {
-		name[count] = temp;
-		count++;
-		analyse_line >> temp;
-		}*/
-		if (ct % 2 == 0)//
+
+		analyse_line >> name;
+		std::string image_name(name);
+		point_data = new std::vector<int>;
+		point_data->reserve(COLOR_COUNT);
+
+		std::getline(fin, line);
+		analyse_line = std::stringstream(line);
+		for (int i = 0; i < COLOR_COUNT; i++)
 		{
-			analyse_line >> name;
-			point_data = new std::vector<int>;
-			point_data->reserve(COLOR_COUNT);
+			analyse_line >> num;
+			point_data->push_back(num);
 		}
-		if (ct % 2 == 1)
-		{
-			std::string image_name(name);
-			//std::cout<<name<<std::endl;
-			//
-			for (int i = 0; i < COLOR_COUNT; i++)
-			{
-				analyse_line >> num;
-				point_data->push_back(num);
-				//std::cout<<num<<" ";
-			}
-			//std::cout<<std::endl;
-			//点数据插入完毕
-			new_rect = new rectangle(POINT, point_data);
-			new_rect->point_data->ID = ID;
-			new_rect->point_data->image_name = image_name;
-			new_rect->point_data->data = point_data;
-			ID++;
-			//std::cout<<ct<<std::endl;
-			image_data.push_back(new_rect);
-			(root->search_insert_position(*new_rect))->insert(*new_rect);
-			memset(name, 0, 100);
-		}
-		ct++;
+
+		//点数据插入完毕
+		new_rect = new rectangle(POINT, point_data);
+		new_rect->point_data->ID = ID;
+		new_rect->point_data->image_name = image_name;
+		new_rect->point_data->data = point_data;
+		image_data.push_back(new_rect);
+		(root->search_insert_position(*new_rect))->insert(*new_rect);
+
+		memset(name, 0, 100);
+		ID++;
 	}
 }

@@ -84,6 +84,7 @@ public:
 	double midpoint_distance;
 	// ¸útarget¾ØÐÎ
 	double cost;
+	int visit_count;
 };
 
 void create_tree_from_file(std::string file_name);
