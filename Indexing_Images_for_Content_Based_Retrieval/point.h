@@ -5,10 +5,9 @@
 #include <string>
 
 //矩形内部最多存储的子矩形数
-#define RECTANGLE_CAPABILITY 11
+#define RECTANGLE_CAPABILITY 15
 //颜色维数
-#define COLOR_COUNT 4
-
+#define FEATURE_COUNT 16
 class point
 {
 public:

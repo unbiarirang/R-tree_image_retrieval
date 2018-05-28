@@ -2,7 +2,6 @@
 
 point::point()
 {
-	color_count = COLOR_COUNT;
 }
 
 

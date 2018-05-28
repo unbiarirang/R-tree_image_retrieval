@@ -11,6 +11,7 @@
 #include "point.h"
 
 enum rectangle_type { POINT = 0, RECTANGLE };
+enum split_method_type {SPLIT = 1, QUADRATIC, QUADRATIC_IMPROVED, TWO_THREE_SPLIT};
 
 class rectangle
 {
@@ -35,8 +36,9 @@ public:
 	void init_point_data(std::string _image_path, std::string _image_name, std::vector<int>* _data);
 
 	//矩形分裂
-	void split(rectangle & new_rect);		// 把点分成左下角和右上角两个部分					
+	void split(rectangle & new_rect);			// 把点分成左下角和右上角两个部分					
 	void split_quadratic(rectangle & new_rect);	// Guttman's quadratic split,分成两个部分
+	void split_quadratic_new(rectangle & new_rect);
 	void split_2to3(rectangle & new_rect);	// 把满的兄弟两个节点分成三个节点，分的次数少，装载比例高
 	// 选用一个大矩形覆盖两/三个矩形时浪费掉的空间最大的两/三个矩形。n为所找seed个数
 	std::vector<rectangle*> find_seed(rectangle* new_rect);
@@ -83,10 +85,10 @@ public:
 	//矩形中心到坐标原点的（欧氏）距离
 	double midpoint_distance;
 	// 跟target矩形
+	// 为了测试结果而加的变量
 	double cost;
 	int visit_count;
 };
 
 void create_tree_from_file(std::string file_name);
 void create_tree_from_file2(std::string file_name);
-void create_tree_from_file3(std::string file_name);
